@@ -1,0 +1,632 @@
+\section{Maps in the Go Programming Language}
+
+Maps are a built-in data structure in the Go programming language
+used to store and manage collections of key--value pairs. Each
+key is associated with a value, allowing data to be retrieved,
+inserted, updated, and deleted efficiently using the corresponding
+key. Maps are particularly useful when information must be
+organised according to unique identifiers, such as usernames,
+product codes, configuration parameters, or database records.\\
+
+Unlike arrays and slices, which organise elements by numerical
+index, maps provide access through keys of a specified type.
+The key identifies an entry, while the associated value stores
+the information linked to that key. Go maps are implemented as
+hash tables, although their internal representation and specific
+performance characteristics are implementation details.\\
+
+A map provides an abstraction for associative storage and is
+commonly used when direct access to values by meaningful keys
+is more appropriate than sequential indexing.
+
+\subsection{Map Declaration and Type}
+
+A map type is declared using the \texttt{map} keyword, followed
+by the key type in square brackets and the value type.
+
+The general syntax is:
+
+\begin{lstlisting}
+map[KeyType]ValueType
+\end{lstlisting}
+
+Here, \texttt{KeyType} specifies the type of the keys, while
+\texttt{ValueType} specifies the type of the associated values.
+All keys in a particular map must have the same type, and all
+values must conform to the map's declared value type.\\
+
+For example, a map associating names with ages can be declared
+as follows:
+
+\begin{lstlisting}
+var ages map[string]int
+\end{lstlisting}
+
+In this declaration, the keys are strings and the values are
+integers. The variable \texttt{ages} is initially a nil map.
+Although its length is zero, it cannot be used to insert
+entries until it has been initialised.\\
+
+Map key types must be comparable. Common examples include
+integers, strings, Boolean values, pointers, and suitable
+struct types. Slices, maps, and functions cannot be used
+directly as map keys because they are not comparable types.
+
+For example:
+
+\begin{lstlisting}
+var scores map[string]float64
+var lookup map[int]string
+var flags map[bool]string
+\end{lstlisting}
+
+These declarations represent maps with different key and
+value types. The types of the keys and values are determined
+at compile time.
+
+\subsection{Map Initialisation}
+
+A map must be initialised before entries can be inserted.
+Go provides two principal methods for initialising maps:
+the built-in \texttt{make} function and map literals.
+
+\subsubsection{Initialisation Using \texttt{make}}
+
+The \texttt{make} function creates an initialised map that
+is ready for use.
+
+\begin{lstlisting}
+ages := make(map[string]int)
+\end{lstlisting}
+
+The resulting map is empty but can immediately accept
+key--value assignments. An optional initial capacity hint
+can also be supplied:
+
+\begin{lstlisting}
+ages := make(map[string]int, 100)
+\end{lstlisting}
+
+The second argument provides an indication of the expected
+number of entries. It may help the implementation prepare
+storage efficiently, but it does not restrict the map to
+100 entries.
+
+\subsubsection{Initialisation Using a Map Literal}
+
+A map literal allows entries to be specified directly
+during initialisation.
+
+\begin{lstlisting}
+ages := map[string]int{
+    "Alice": 25,
+    "Bob":   30,
+    "Carol": 28,
+}
+\end{lstlisting}
+
+This statement creates a map containing three entries.
+The strings are keys, and their associated integers are
+the stored values.\\
+
+Map literals are useful when the initial contents are known
+in advance, particularly for configuration settings,
+lookup tables, and small collections of related data.
+
+\subsection{Inserting and Updating Map Entries}
+
+Entries are inserted into a map by assigning a value to a
+key using the indexing operator.
+
+\begin{lstlisting}
+scores := make(map[string]int)
+
+scores["Alice"] = 85
+scores["Bob"] = 92
+
+fmt.Println(scores["Alice"]) // 85
+\end{lstlisting}
+
+If the specified key does not exist, the assignment creates
+a new entry. If the key already exists, its associated
+value is replaced.
+
+For example:
+
+\begin{lstlisting}
+scores["Alice"] = 85
+scores["Alice"] = 95
+
+fmt.Println(scores["Alice"]) // 95
+\end{lstlisting}
+
+The second assignment updates Alice's score from 85 to 95.
+A map cannot contain multiple distinct entries with the
+same key; each key identifies at most one current value.\\
+
+Assignment to a nil map is invalid and causes a run-time
+panic. Therefore, a map should be initialised before
+inserting entries.
+
+\subsection{Accessing Map Values}
+
+A map value can be retrieved by specifying its key in
+square brackets.
+
+\begin{lstlisting}
+ages := map[string]int{
+    "Alice": 25,
+    "Bob":   30,
+}
+
+fmt.Println(ages["Alice"]) // 25
+\end{lstlisting}
+
+If a key is absent, a map lookup returns the zero value
+of the map's value type. For example, a lookup in a
+\texttt{map[string]int} returns zero when the specified
+key does not exist.\\
+
+This behaviour can make it difficult to distinguish an
+absent entry from an entry whose value is genuinely zero.
+Go addresses this issue through the two-result form of
+map indexing.
+
+\subsubsection{Checking Whether a Key Exists}
+
+A map lookup can return both the associated value and
+a Boolean indicating whether the key is present.
+
+\begin{lstlisting}
+score, exists := scores["Alice"]
+
+if exists {
+    fmt.Println("Score:", score)
+} else {
+    fmt.Println("Entry not found")
+}
+\end{lstlisting}
+
+The variable \texttt{exists} is \texttt{true} if the key
+is present and \texttt{false} otherwise. This approach
+allows a program to distinguish an absent key from a
+key associated with a zero value.\\
+
+For example:
+
+\begin{lstlisting}
+quantities := map[string]int{
+    "apples": 0,
+}
+
+value, exists := quantities["apples"]
+fmt.Println(value, exists) // 0 true
+
+value, exists = quantities["oranges"]
+fmt.Println(value, exists) // 0 false
+\end{lstlisting}
+
+Both lookups return zero as the value, but their Boolean
+results distinguish the two situations.
+
+\subsection{Deleting Map Entries}
+
+Go provides the built-in \texttt{delete} function to
+remove an entry from a map.
+
+\begin{lstlisting}
+ages := map[string]int{
+    "Alice": 25,
+    "Bob":   30,
+    "Carol": 28,
+}
+
+delete(ages, "Bob")
+
+fmt.Println(len(ages)) // 2
+\end{lstlisting}
+
+The function accepts a map and a key. If the key exists,
+the corresponding entry is removed. If the key is absent,
+the operation has no effect. Deleting an entry from a
+nil map is also permitted.\\
+
+The built-in \texttt{clear} function can be used to remove
+all entries from a map.
+
+\begin{lstlisting}
+clear(ages)
+fmt.Println(len(ages)) // 0
+\end{lstlisting}
+
+The \texttt{clear} operation empties the map without
+requiring the variable to be reassigned to a new map.
+
+\subsection{Determining the Size of a Map}
+
+The built-in \texttt{len} function returns the number of
+entries currently stored in a map.
+
+\begin{lstlisting}
+products := map[string]float64{
+    "Laptop":  899.99,
+    "Monitor": 249.50,
+    "Mouse":    29.99,
+}
+
+fmt.Println(len(products)) // 3
+\end{lstlisting}
+
+The result represents the number of key--value pairs,
+rather than the amount of memory allocated internally.
+The length changes when entries are inserted or deleted.\\
+
+For a nil map, \texttt{len} returns zero.
+
+\subsection{Iterating Over Maps}
+
+The \texttt{range} clause can be used to iterate over the
+entries of a map. During iteration, it provides each key
+and its associated value.
+
+\begin{lstlisting}
+scores := map[string]int{
+    "Alice": 85,
+    "Bob":   92,
+    "Carol": 78,
+}
+
+for name, score := range scores {
+    fmt.Println(name, score)
+}
+\end{lstlisting}
+
+Each iteration assigns a key to \texttt{name} and its
+associated value to \texttt{score}. The loop continues
+until the map's entries have been visited.\\
+
+Map iteration order is unspecified. A program must not
+assume that entries will be returned in insertion order,
+alphabetical order, or any other consistent order.
+The order may vary between iterations.\\
+
+If deterministic output is required, the keys can be
+collected into a slice, sorted, and then used to retrieve
+the associated values.
+
+\begin{lstlisting}
+names := make([]string, 0, len(scores))
+
+for name := range scores {
+    names = append(names, name)
+}
+
+sort.Strings(names)
+
+for _, name := range names {
+    fmt.Println(name, scores[name])
+}
+\end{lstlisting}
+
+This example requires the \texttt{sort} package. Sorting
+the keys ensures that the entries are printed in
+alphabetical order, independently of the map's iteration
+order.
+
+\subsection{Maps and Composite Values}
+
+Map values may be of any type, including arrays, slices,
+structs, pointers, interfaces, and other maps. This allows
+maps to represent complex data relationships.\\
+
+For example, a map can associate a person's name with
+a structure containing several attributes.
+
+\begin{lstlisting}
+type Person struct {
+    Age    int
+    City   string
+}
+
+people := map[string]Person{
+    "Alice": {
+        Age:  25,
+        City: "Manchester",
+    },
+    "Bob": {
+        Age:  30,
+        City: "London",
+    },
+}
+\end{lstlisting}
+
+A value can be accessed through its key and its fields
+can be read directly.
+
+\begin{lstlisting}
+person := people["Alice"]
+fmt.Println(person.City) // Manchester
+\end{lstlisting}
+
+When a map stores struct values, retrieving an entry
+produces a copy of the stored struct value. Consequently,
+a field of a struct stored directly in a map cannot be
+assigned through a map index expression.\\
+
+For example, the following assignment is invalid:
+
+\begin{lstlisting}
+// Invalid:
+// people["Alice"].Age = 26
+\end{lstlisting}
+
+Instead, the value can be retrieved, modified, and assigned
+back to the map.
+
+\begin{lstlisting}
+person := people["Alice"]
+person.Age = 26
+people["Alice"] = person
+\end{lstlisting}
+
+Alternatively, a map can store pointers to structs, allowing
+the pointed-to objects to be modified directly.
+
+\begin{lstlisting}
+people := map[string]*Person{
+    "Alice": {Age: 25, City: "Manchester"},
+}
+
+people["Alice"].Age = 26
+\end{lstlisting}
+
+This approach is appropriate when shared mutable objects
+are required, although pointer ownership and concurrent
+access must be managed carefully.
+
+\subsection{Nested Maps}
+
+A map can contain another map as its value type. This
+creates a nested map structure that can represent
+hierarchical relationships or multidimensional lookup
+tables.\\
+
+For example, a system may store student marks by student
+name and subject.
+
+\begin{lstlisting}
+marks := map[string]map[string]int{
+    "Alice": {
+        "Mathematics": 90,
+        "English":     85,
+    },
+    "Bob": {
+        "Mathematics": 78,
+        "English":     88,
+    },
+}
+
+fmt.Println(marks["Alice"]["Mathematics"]) // 90
+\end{lstlisting}
+
+The outer map associates each student with another map,
+which stores subject names and their corresponding marks.\\
+
+When nested maps are created incrementally, each inner
+map must be initialised before entries can be inserted
+into it.
+
+\begin{lstlisting}
+results := make(map[string]map[string]int)
+
+results["Alice"] = make(map[string]int)
+results["Alice"]["Mathematics"] = 90
+\end{lstlisting}
+
+Without the initialisation of the inner map, assigning
+a value through a nil inner map would cause a run-time
+panic.
+
+\subsection{Maps and Function Parameters}
+
+Maps can be passed to functions as arguments. A map value
+contains a reference to the underlying map data, so copying
+the map value does not create an independent copy of all
+its entries. Consequently, modifications made through
+the parameter can be visible to the caller.
+
+\begin{lstlisting}
+func updateScore(scores map[string]int,
+    name string, score int) {
+    scores[name] = score
+}
+
+func main() {
+    scores := map[string]int{
+        "Alice": 85,
+    }
+
+    updateScore(scores, "Alice", 95)
+
+    fmt.Println(scores["Alice"]) // 95
+}
+\end{lstlisting}
+
+In this example, the function updates the entry in the
+map that is also accessible through the caller's variable.
+The map value itself is passed by the value, but both values
+refer to the same underlying map data.\\
+
+Assigning a new map to the function's local parameter
+does not, however, automatically replace the caller's
+map variable. If a function needs to create or replace
+a map and communicate that new map value to the caller,
+it can return the map.
+
+\begin{lstlisting}
+func createScores() map[string]int {
+    return map[string]int{
+        "Alice": 85,
+        "Bob":   92,
+    }
+}
+\end{lstlisting}
+
+This pattern is useful for constructing maps within
+functions and returning them to other parts of a program.
+
+\subsection{Nil Maps and Empty Maps}
+
+Go distinguishes between nil maps and initialised empty
+maps. Both have a length of zero, but their behaviour
+differs when entries are inserted.\\
+
+A nil map can be declared without initialisation:
+
+\begin{lstlisting}
+var scores map[string]int
+
+fmt.Println(scores == nil) // true
+fmt.Println(len(scores))   // 0
+\end{lstlisting}
+
+A nil map supports lookups, iterations, deletions, and
+length queries. A lookup returns the value type's zero
+value when the key is absent. However, assigning a new
+entry to a nil map causes a run-time panic.
+
+An empty map can be created using \texttt{make} or an
+empty map literal.
+
+\begin{lstlisting}
+scores := make(map[string]int)
+// Alternatively:
+scores = map[string]int{}
+
+scores["Alice"] = 85
+\end{lstlisting}
+
+This map is initialised and supports insertion. Choosing
+between a nil map and an empty map depends on the
+requirements of the program and the conventions of the
+surrounding API.
+
+\subsection{Map Equality and Comparability}
+
+Map types are not comparable, except that a map value
+can be compared with \texttt{nil}. Therefore, two maps
+cannot be compared directly using the equality operator
+to determine whether they contain the same entries.
+
+\begin{lstlisting}
+first := map[string]int{"Alice": 25}
+second := map[string]int{"Alice": 25}
+
+fmt.Println(first == nil) // false
+
+// Invalid:
+// fmt.Println(first == second)
+\end{lstlisting}
+
+If two maps must be compared by their contents, the
+program must compare their lengths, keys, and associated
+values explicitly, or use an appropriate comparison
+utility where the value types permit it.\\
+
+The inability to compare maps directly reflects their
+reference-like behaviour and the absence of a general
+language-defined equality operation for map contents.
+
+\subsection{Concurrency and Map Safety}
+
+Built-in Go maps are not safe for concurrent read and
+write access without appropriate synchronisation.
+If multiple goroutines access a map concurrently and
+at least one goroutine modifies it, the program must
+coordinate access to prevent data races and invalid
+concurrent operations.\\
+
+One common approach is to protect map access with a
+mutex from the \texttt{sync} package.
+
+\begin{lstlisting}
+type SafeCounter struct {
+    mu     sync.Mutex
+    counts map[string]int
+}
+
+func (c *SafeCounter) Increment(key string) {
+    c.mu.Lock()
+    defer c.mu.Unlock()
+
+    c.counts[key]++
+}
+\end{lstlisting}
+
+The mutex ensures that only one goroutine at a time
+executes the protected operation. In practical code,
+the map must also be initialised before insertion.\\
+
+A complete initialisation might be:
+
+\begin{lstlisting}
+counter := SafeCounter{
+    counts: make(map[string]int),
+}
+\end{lstlisting}
+
+For workloads involving specialised concurrent access
+patterns, Go also provides the \texttt{sync.Map} type.
+However, an ordinary map protected by a mutex is often
+simpler and provides clearer control over the relationship
+between map operations and other shared state.
+
+\subsection{Performance Considerations}
+
+Maps generally provide efficient insertion, retrieval,
+and deletion by key. Their performance is typically
+constant-time on average, although individual operations
+can take longer depending on collisions, resizing, key
+costs, and implementation details.\\
+
+The choice of key type can influence performance.
+String keys are useful for descriptive identifiers,
+whereas integer keys may be appropriate for numerical
+identifiers. Key types must also be comparable, and
+equality comparisons for compound key types may involve
+multiple fields.\\
+
+When the approximate number of entries is known, providing
+an initial capacity \texttt{make} can help reduce
+allocation and resizing overhead.
+
+\begin{lstlisting}
+users := make(map[int]string, 1000)
+\end{lstlisting}
+
+This creates a map intended to hold approximately 1,000
+entries. It does not impose a maximum capacity.\\
+
+Maps should be selected when data is best accessed through
+keys rather than sequential positions. For workloads that
+require ordered traversal, direct indexing, or compact
+fixed-size storage, arrays or slices may be more appropriate.
+
+\subsection{Conclusion}
+
+Maps are an essential data structure in Go for representing
+associations between unique keys and corresponding values.
+They support efficient insertion, retrieval, updating,
+deletion, and iteration, making them suitable for lookup
+tables, counters, configuration data, caching, and
+structured relationships.\\
+
+A thorough understanding of map declaration, initialisation,
+key comparability, zero-value lookups, iteration order,
+nil-map behaviour, nested structures, and concurrency
+is necessary for writing correct and efficient Go programs.
+Particular attention should be given to the fact that map
+iteration order is unspecified and that built-in maps
+require synchronisation when accessed concurrently with
+modifications.\\
+

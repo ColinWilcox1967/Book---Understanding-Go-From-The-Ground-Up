@@ -1,0 +1,337 @@
+\section{Programming Languages Overview}
+The history of modern computer programming languages is closely related to the evolution of computer technology itself. As computers became faster, smaller, and more powerful, programmers needed better ways to communicate with them. Early computers required programmers to write instructions directly in binary machine code, a process that was slow, error-prone, and difficult to maintain. Over time, programming languages evolved to become more readable, portable, and expressive, allowing developers to build increasingly sophisticated software.\\
+
+Today, there are hundreds of programming languages, each designed to solve particular types of problem. The development of these languages reflects decades of innovation in computer science, software engineering, and mathematics.
+
+\subsection{The Era of Machine Language (1940s--1950s)}
+
+The first electronic computers, including systems such as ENIAC and UNIVAC, were programmed using machine language. Machine language consists entirely of binary numbers (0s and 1s) that correspond directly to instructions executed by the computer's processor.\\
+
+For example, a simple operation such as adding two numbers required programmers to know the exact binary instruction codes and memory addresses. Programs were often entered using switches, punch cards, or paper tape.\\
+
+Programming at this level presented several challenges:
+
+\begin{itemize}
+    \item Programs were extremely difficult to understand.
+    \item Even small errors could cause complete program failure.
+    \item Programs written for one computer rarely worked on another.
+    \item Development was slow and expensive.
+\end{itemize}
+
+Because of these limitations, programmers sought methods that would make software development easier.\\
+
+\subsection{Assembly Language}
+
+Assembly language was introduced during the early 1950s as a symbolic representation of machine code. Instead of remembering binary instruction patterns, programmers could use mnemonic commands such as:
+
+\begin{itemize}
+    \item \texttt{MOV} (move data)
+    \item \texttt{ADD} (addition)
+    \item \texttt{SUB} (subtraction)
+    \item \texttt{JMP} (jump to another instruction)
+\end{itemize}
+
+An assembler translated these human-readable commands into machine code.\\
+
+Assembly language dramatically improved programmer productivity while maintaining complete control over hardware. It became particularly important for operating systems, embedded systems, and device drivers.\\
+
+However, the assembly language remained hardware-specific. A program written for one processor architecture usually had to be rewritten for another.\\
+
+\subsection{The Birth of High-Level Programming Languages}
+
+The greatest leap forward came with the invention of high-level programming languages during the 1950s. These languages allowed programmers to describe algorithms using words, mathematical expressions, and logical structures rather than processor instructions. Compilers translated high-level languages into machine code. \\
+
+\subsubsection{FORTRAN}
+
+Released in 1957, FORTRAN (Formula Translation) was one of the first successful high-level programming languages.\\
+
+Developed by IBM, FORTRAN focused on scientific and engineering calculations. It introduced features such as:
+
+\begin{itemize}
+    \item Variables
+    \item Loops
+    \item Conditional statements
+    \item Mathematical expressions
+    \item Functions
+\end{itemize}
+
+FORTRAN enabled scientists and engineers to solve complex numerical problems much more quickly than before and remained a dominant scientific programming language for decades.
+
+\subsubsection{COBOL}
+
+COBOL (Common Business-Orientated Language) was introduced in 1959 to meet the needs of businesses and governments.\\
+
+Unlike FORTRAN, COBOL emphasised readability. Its syntax resembled English sentences, making programs easier for managers and analysts to understand.
+
+COBOL became widely used for:
+
+\begin{itemize}
+    \item Banking
+    \item Payroll
+    \item Accounting
+    \item Government databases
+    \item Insurance systems
+\end{itemize}
+
+Many legacy financial systems around the world continue to use COBOL today.
+
+\subsection{Structured Programming (1960s--1970s)}
+
+As software projects became larger, programmers discovered that unrestricted jumps (using the \texttt{goto} statement) made programs difficult to understand.\\
+
+Researchers promoted structured programming, a methodology that encouraged programs to be built using:
+
+\begin{itemize}
+    \item Sequence
+    \item Selection (\texttt{if} statements)
+    \item Iteration (loops)
+\end{itemize}
+
+This approach improved readability, testing, and maintenance.
+
+\subsection{ALGOL}
+
+ALGOL introduced many concepts that later became standard in programming languages, including:
+
+\begin{itemize}
+    \item Block structure
+    \item Nested scopes
+    \item Formal syntax descriptions
+    \item Recursive procedures
+\end{itemize}
+
+Although ALGOL itself was not widely used commercially, it heavily influenced future languages.
+
+\subsection{Pascal}
+
+Niklaus Wirth designed Pascal in 1970 primarily for education. Pascal emphasised:
+
+\begin{itemize}
+    \item Clear syntax
+    \item Strong type checking
+    \item Structured programming
+    \item Program organisation
+\end{itemize}
+
+For many years, Pascal became the primary language used to teach programming in universities.
+
+\subsection{The Rise of C}
+
+One of the most influential programming languages ever created was C. Developed by Dennis Ritchie at Bell Laboratories in the early 1970s, C balanced high-level programming with direct access to computer hardware.\\
+
+C introduced features such as:
+
+\begin{itemize}
+    \item Pointers
+    \item Efficient memory management
+    \item Portable compilers
+    \item Modular programming
+\end{itemize}
+
+Perhaps its greatest achievement was enabling the Unix operating system to be rewritten in a portable language rather than assembly language.\\
+
+Today, C remains widely used in:
+
+\begin{itemize}
+    \item Operating systems
+    \item Embedded devices
+    \item Game engines
+    \item Databases
+    \item Networking software
+\end{itemize}
+
+Many modern languages borrow syntax directly from C.
+
+\subsection{Object-Oriented Programming}
+
+By the 1980s, software systems had grown into millions of lines of code. Managing this complexity required new programming techniques.\\
+
+Object-orientated programming (OOP) organised software around objects that combine data with the operations that manipulate those data.\\
+
+The four major principles of object-orientated programming are as follows.
+
+\begin{itemize}
+    \item Encapsulation
+    \item Inheritance
+    \item Polymorphism
+    \item Abstraction
+\end{itemize}
+
+These ideas helped programmers design reusable and maintainable software.
+
+\subsection{C++}
+
+Created by Bjarne Stroustrup, C++ extended C with object-orientated features while retaining high performance.\\
+
+C++ became popular for:
+
+\begin{itemize}
+    \item Video games
+    \item Financial software
+    \item Desktop applications
+    \item Simulation software
+    \item Operating systems
+\end{itemize}
+
+\subsection{Java}
+
+Java, introduced by Sun Microsystems in 1995, revolutionised software portability.\\
+
+Instead of compiling directly to machine code, Java programs compile into bytecode that runs on the Java Virtual Machine (JVM). This approach led to Java's famous slogan:
+
+\begin{quote}
+\textbf{``Write Once, Run Anywhere.''}
+\end{quote}
+
+Java became a leading language for:
+
+\begin{itemize}
+    \item Enterprise software
+    \item Android development
+    \item Large-scale server applications
+    \item Web services
+\end{itemize}
+
+\subsection{The Internet Revolution}
+
+The rapid growth of the Web during the 1990s transformed programming.
+
+\subsection{JavaScript}
+
+Originally created in only ten days by Brendan Eich, JavaScript enabled interactive websites. \\
+
+Instead of static pages, websites could now include the following:
+
+\begin{itemize}
+    \item Dynamic menus
+    \item Animations
+    \item Online forms
+    \item Interactive maps
+    \item Browser games
+\end{itemize}
+
+Today, JavaScript powers nearly all modern websites.
+
+\subsection{PHP}
+
+PHP simplified web server programming and became the foundation for many early dynamic websites and content management systems, including WordPress.
+
+\subsection{Perl}
+
+Perl became popular for system administration, text processing, and early web development due to its powerful pattern-matching capabilities.
+
+\subsection{Python and Simplicity}
+
+Python was created by Guido van Rossum in 1991 with the goal of making programming simple and readable.\\
+
+Python emphasises:
+
+\begin{itemize}
+    \item Clean syntax
+    \item Minimal boilerplate code
+    \item Extensive standard libraries
+    \item Cross-platform compatibility
+\end{itemize}
+
+Because beginners can learn it quickly while professionals can build complex applications, Python has become one of the world's most popular programming languages.\\
+
+Its major applications include
+
+\begin{itemize}
+    \item Artificial intelligence
+    \item Machine learning
+    \item Data science
+    \item Scientific computing
+    \item Robotics
+    \item Automation
+    \item Web development
+    \item Cybersecurity
+\end{itemize}
+
+\subsection{Functional Programming}
+
+Although functional programming concepts originated decades earlier, they became increasingly influential in modern software development.\\
+
+Languages such as Haskell, Scala, Elixir, and F \# emphasise:
+
+\begin{itemize}
+    \item Immutable data
+    \item Pure functions
+    \item Higher-order functions
+    \item Reduced side effects
+\end{itemize}
+
+Functional programming often makes concurrent and parallel programs easier to reason about.
+
+\subsection{Modern Programming Languages}
+
+Since 2000, new languages have addressed challenges such as cloud computing, multicore processors, and cybersecurity.
+
+\subsection{C\#}
+
+Developed by Microsoft, C \# combines object-orientated programming with modern language features and is widely used for enterprise applications, desktop software, web development, and game development through Unity.
+
+\subsection{Go}
+
+Created by Google, Go focuses on simplicity, concurrency, and fast compilation.\\
+
+It is widely used for:
+
+\begin{itemize}
+    \item Cloud computing
+    \item Distributed systems
+    \item Networking
+    \item Container technologies
+\end{itemize}
+
+\subsection{Rust}
+
+Rust addresses one of programming's oldest problems: memory safety. Its ownership system prevents many common programming errors without requiring a garbage collector.\\
+
+Rust has gained popularity in:
+
+\begin{itemize}
+    \item Operating systems
+    \item Web browsers
+    \item Embedded programming
+    \item Security-critical software
+\end{itemize}
+
+\subsection{Swift}
+
+Apple introduced Swift to replace Objective-C to develop applications on macOS, iOS, watchOS, and tvOS.\\
+
+Swift emphasises safety, speed, and modern programming practices.
+
+\subsection{Kotlin}
+
+Kotlin became Google's preferred language for Android development due to its concise syntax and improved safety compared to Java.
+
+\subsection{TypeScript}
+
+TypeScript extends JavaScript by adding static typing and improved development tools. Large web applications increasingly rely on TypeScript because it reduces programming errors while remaining fully compatible with JavaScript.
+
+\subsection{Current Trends}
+
+Modern programming language design continues to evolve in response to new technologies. \\
+
+Current trends include:
+
+\begin{itemize}
+    \item Improved memory safety
+    \item Better concurrency support
+    \item Integration of artificial intelligence
+    \item Cloud-native development
+    \item Cross-platform programming
+    \item Automatic memory management
+    \item Strong static typing
+    \item Developer productivity
+\end{itemize}
+
+Language designers increasingly prioritise writing reliable, maintainable, and secure software rather than simply maximising execution speed.
+
+\subsection{Summary}
+
+The evolution of programming languages reflects the broader history of computing. Each generation of languages has sought to overcome the limitations of its predecessors by making programming more intuitive, portable, efficient, and secure. From binary machine code to today's sophisticated languages, developers have continually improved the tools used to communicate with computers.\\
+
+Modern programmers can choose from a diverse ecosystem of languages, each optimised for different domains, including systems programming, web development, mobile applications, artificial intelligence, scientific research, and cloud computing. As computing technologies continue to advance, programming languages will continue to evolve, incorporating new paradigms and features that make software development more accessible and capable of addressing the increasingly complex challenges of the digital age.

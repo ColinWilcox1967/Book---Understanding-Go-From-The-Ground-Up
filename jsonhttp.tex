@@ -1,0 +1,899 @@
+\section{JSON and HTTP API Support}
+
+\subsection{Introduction}
+
+The Go programming language provides extensive support for developing applications that exchange structured data over HTTP. Its standard library includes packages for serialising and deserialising JSON, creating HTTP clients and servers, handling requests and responses, managing network connections, and implementing middleware and routing logic.\\
+
+Two particularly important packages are \texttt{encoding/json} and \texttt{net/http}. The former provides facilities for converting Go values to and from JSON (JavaScript Object Notation), while the latter implements HTTP clients and servers. Together, these packages provide the foundations for building RESTful APIs, web services, microservices and distributed applications without requiring an external web framework.\\
+
+Additional packages, including \texttt{context}, \texttt{io}, \texttt{net/url}, \texttt{mime}, and \texttt{crypto/tls}, support request cancellation, data streaming, URL manipulation, content negotiation and secure transport.\\
+
+Go's interface-based design allows HTTP handlers and JSON processing functions to remain relatively independent of the underlying implementation. This promotes modularity, testability and interoperability with other systems.
+
+\subsection{JSON Representation and Data Interchange}
+
+JSON is a text-based data interchange format that represents values using objects, arrays, strings, numbers, Boolean values and the special value \texttt{null}. It is widely used in HTTP APIs because it is language-independent and supported by most modern programming languages.\\
+
+The Go standard library provides the \texttt{encoding/json} package for encoding Go values into JSON and decoding JSON into Go values.\\
+
+For example, consider the following Go structure:
+
+\begin{lstlisting}
+type User struct {
+    ID       int    `json:"id"`
+    Name     string `json:"name"`
+    Email    string `json:"email"`
+    IsActive bool   `json:"is_active"`
+}
+\end{lstlisting}
+
+The structure represents a user record. The annotations enclosed in backticks are called struct tags. The \texttt{json} tags specify the corresponding JSON property names.\\
+
+An instance of this structure could be represented in JSON as follows:
+
+\begin{lstlisting}
+{
+    "id": 101,
+    "name": "Alice",
+    "email": "alice@example.com",
+    "is_active": true
+}
+\end{lstlisting}
+
+Struct tags allow Go field names to differ from the names used in the external JSON representation. They can also specify options, such as omitting fields with zero values or excluding particular fields from JSON processing.
+
+\subsection{Serialising Go Values into JSON}
+
+Serialisation, also known as marshalling in Go, converts a Go value into its JSON representation. The \texttt{json.Marshal} function performs this operation and returns a byte slice containing the encoded data.
+
+\begin{lstlisting}
+package main
+
+import (
+    "encoding/json"
+    "fmt"
+)
+
+type User struct {
+    ID   int    `json:"id"`
+    Name string `json:"name"`
+}
+
+func main() {
+    user := User{
+        ID:   101,
+        Name: "Alice",
+    }
+
+    data, err := json.Marshal(user)
+    if err != nil {
+        fmt.Println("JSON encoding error:", err)
+        return
+    }
+
+    fmt.Println(string(data))
+}
+\end{lstlisting}
+
+The output is:
+
+\begin{lstlisting}
+{"id":101,"name":"Alice"}
+\end{lstlisting}
+
+The returned byte slice can be written to a file, transmitted through an HTTP response or sent to another service. The conversion to a string is used here only to display the result.\\
+
+The \texttt{json.Marshal} function may return an error when a value cannot be represented in JSON, such as when an unsupported type is encountered or a custom marshaler reports an error.\\
+
+For human-readable output, the \texttt{json.MarshalIndent} function can add indentation and line breaks:
+
+\begin{lstlisting}
+data, err := json.MarshalIndent(user, "", "  ")
+\end{lstlisting}
+
+The second argument specifies a prefix for each line, while the third specifies the indentation string.\\
+
+\subsection{Struct Tags and Field Control}
+
+Struct tags provide a declarative way to control how Go fields are represented in JSON.\\
+
+Consider the following example:
+
+\begin{lstlisting}
+type Product struct {
+    ID          int     `json:"id"`
+    Name        string  `json:"name"`
+    Description string  `json:"description,omitempty"`
+    Price       float64 `json:"price"`
+    InternalID  string  `json:"-"`
+}
+\end{lstlisting}
+
+The tag \texttt{json:"description,omitempty"} omits the field when it has the relevant empty value. For ordinary strings, this means an empty string. For numeric values, it means zero; for Boolean values, it means \texttt{false}; and for pointers, interfaces, maps and slices, it generally means nil.\\
+
+The tag \texttt{json:"-"} excludes the field from JSON encoding and decoding.\\
+
+By default, the \texttt{encoding/json} package processes exported struct fields, whose names begin with an uppercase letter. Unexported fields are not ordinarily included in JSON encoding or decoding. Struct tags can customise the external representation of exported fields, but they do not make unexported fields accessible to the standard encoder.\\
+
+These features are useful when separating an application's internal data model from its public API representation. In particular, internal identifiers, implementation details and sensitive fields should not be exposed accidentally through automatic serialisation.\\
+
+The \texttt{omitempty} option does not distinguish between every possible semantic state. For example, a Boolean field with the value \texttt{false} may be omitted, even if the API needs to communicate an explicit false value. A pointer or a suitable custom representation can be used when the distinction between an absent field and a field containing its zero value is significant.
+
+\subsection{Deserialising JSON into Go Values}
+
+Deserialisation, referred to as unmarshalling in Go, converts JSON data into Go values. The \texttt{json.Unmarshal} function performs this operation.
+
+\begin{lstlisting}
+package main
+
+import (
+    "encoding/json"
+    "fmt"
+)
+
+type User struct {
+    ID   int    `json:"id"`
+    Name string `json:"name"`
+}
+
+func main() {
+    input := []byte(
+        `{"id":101,"name":"Alice"}`,
+    )
+
+    var user User
+
+    if err := json.Unmarshal(input, &user); err != nil {
+        fmt.Println("JSON decoding error:", err)
+        return
+    }
+
+    fmt.Println(user.ID)
+    fmt.Println(user.Name)
+}
+\end{lstlisting}
+
+The destination is passed by pointer because unmarshalling populates the supplied value. The decoder matches JSON object properties to struct fields according to the package's field-matching rules and any applicable struct tags.\\
+
+A decoding operation can fail if the JSON syntax is invalid or a JSON value cannot be converted into the corresponding Go field type. For example, a JSON string cannot ordinarily be decoded directly into an integer field.\\
+
+Unknown JSON properties are generally ignored when decoding into a struct unless stricter behaviour is requested. This can be useful for forward compatibility, but API implementations may prefer stricter validation where unexpected fields should be rejected.\\
+
+For dynamic or loosely structured data, a program can decode into a value of type \texttt{any}, also known as \texttt{interface\{\}}:
+
+\begin{lstlisting}
+var value any
+
+err := json.Unmarshal(input, &value)
+\end{lstlisting}
+
+In this case, JSON objects are represented as \texttt{map[string]any}, arrays as \texttt{[]any}, strings as \texttt{string}, Booleans as \texttt{bool}, and JSON numbers as \texttt{float64} by default. The use of \texttt{float64} can be problematic for integers that exceed its exact integer precision. When preserving arbitrary JSON numbers is important, a decoder configured with \texttt{UseNumber} can retain them as \texttt{json.Number}.\\
+
+\subsection{Streaming JSON with Encoders and Decoders}
+
+The \texttt{json.Encoder} and \texttt{json.Decoder} types support JSON processing directly through the \texttt{io.Writer} and \texttt{io.Reader} interfaces.\\
+
+For example, a JSON value can be written to standard output as follows:
+
+\begin{lstlisting}
+encoder := json.NewEncoder(os.Stdout)
+encoder.SetIndent("", "  ")
+
+if err := encoder.Encode(user); err != nil {
+    return err
+}
+\end{lstlisting}
+
+The \texttt{Encode} method serialises the value and writes it to the destination, normally appending a newline after the encoded value.\\
+
+Similarly, JSON can be decoded directly from a file or network stream:
+
+\begin{lstlisting}
+decoder := json.NewDecoder(file)
+
+var user User
+if err := decoder.Decode(&user); err != nil {
+    return err
+}
+\end{lstlisting}
+
+Streaming is useful when processing data without first reading the entire input into memory. A decoder can also process multiple consecutive JSON values from a stream by repeatedly calling \texttt{Decode} until the end of input is reached.\\
+
+For HTTP request bodies, the same approach is commonly used with \texttt{http.Request.Body}. Nevertheless, streaming alone does not impose a maximum input size, validate business rules or guarantee that the request contains exactly one JSON value. Those requirements must be enforced separately.\\
+
+\subsection{Introduction to HTTP in Go}
+
+HTTP (Hypertext Transfer Protocol) is an application-layer protocol used for communication between clients and servers. An HTTP request contains a method, a target URL, headers and, where appropriate, a body. The server returns an HTTP response containing a status code, headers and an optional body.\\
+
+Go implements HTTP support primarily through the \texttt{net/http} package. This package includes:
+
+\begin{itemize}
+    \item \texttt{http.Client} for issuing HTTP requests.
+    \item \texttt{http.Request} for representing requests.
+    \item \texttt{http.Response} for representing responses.
+    \item \texttt{http.Server} for accepting and serving HTTP connections.
+    \item \texttt{http.Handler} and \texttt{http.HandlerFunc} for defining request handlers.
+    \item \texttt{http.ServeMux} for routing requests to handlers.
+    \item Helper functions such as \texttt{http.Get}, \texttt{http.Post} and \texttt{http.ListenAndServe}.
+\end{itemize}
+
+The standard library supports HTTP/1.1 and HTTP/2 under appropriate configurations. HTTPS is supported through TLS, including the integration of HTTP servers and clients with secure transport.\\
+
+\subsection{Creating a Basic HTTP Server}
+
+An HTTP server accepts requests from clients and invokes a handler to produce a response. In Go, a handler implements the following interface:
+
+\begin{lstlisting}
+type Handler interface {
+    ServeHTTP(
+        ResponseWriter,
+        *Request,
+    )
+}
+\end{lstlisting}
+
+The \texttt{http.ResponseWriter} interface allows a handler to construct the response, while \texttt{*http.Request} provides access to the incoming request.\\
+
+A simple HTTP server can be implemented as follows:
+
+\begin{lstlisting}
+package main
+
+import (
+    "fmt"
+    "net/http"
+)
+
+func homeHandler(
+    w http.ResponseWriter,
+    r *http.Request,
+) {
+    fmt.Fprintln(w, "Welcome to the Go HTTP server")
+}
+
+func main() {
+    http.HandleFunc("/", homeHandler)
+
+    err := http.ListenAndServe(":8080", nil)
+    if err != nil {
+        fmt.Println("Server error:", err)
+    }
+}
+\end{lstlisting}
+
+The call to \texttt{http.HandleFunc} registers a function as an HTTP handler on the default multiplexer. The call to \texttt{http.ListenAndServe} starts listening on port 8080 and serves incoming HTTP requests.\\
+
+The second argument to \texttt{ListenAndServe} is nil, which means that the default multiplexer is used. Passing a custom handler allows an application to control routing explicitly.\\
+
+For production systems, it is generally preferable to construct an \texttt{http.Server} explicitly so that time-outs, header limits, shutdown behaviour and other server settings can be configured.\\
+
+\subsection{HTTP Routing and Request Handling}
+
+Routing determines which handler processes a request based on properties such as the request path and HTTP method.\\
+
+Modern versions of Go provide method-aware routing in \texttt{http.ServeMux}. For example:
+
+\begin{lstlisting}
+package main
+
+import (
+    "fmt"
+    "net/http"
+)
+
+func getUser(
+    w http.ResponseWriter,
+    r *http.Request,
+) {
+    fmt.Fprintln(w, "Retrieving user")
+}
+
+func createUser(
+    w http.ResponseWriter,
+    r *http.Request,
+) {
+    fmt.Fprintln(w, "Creating user")
+}
+
+func main() {
+    mux := http.NewServeMux()
+
+    mux.HandleFunc("GET /users", getUser)
+    mux.HandleFunc("POST /users", createUser)
+
+    if err := http.ListenAndServe(":8080", mux); err != nil {
+        fmt.Println(err)
+    }
+}
+\end{lstlisting}
+
+The patterns distinguish requests according to their HTTP methods. The \texttt{GET /users} pattern matches GET requests for the specified path, whereas \texttt{POST /users} matches POST requests.\\
+
+These method-aware patterns and wildcard routing features are available in the enhanced \texttt{ServeMux} introduced in Go 1.22. Applications using older Go versions may need a different routing approach.\\
+
+A handler can inspect request properties such as the method, URL, headers and body. It can also use path parameters where the routing pattern defines wildcards, allowing a server to expose resources through routes such as \texttt{/users/\{id\}}.\\
+
+For example, with a suitable route registered in a recent Go version, the handler can retrieve a path parameter using \texttt{r.PathValue("id")}.
+
+\subsection{Constructing HTTP Responses}
+
+An HTTP handler creates a response by writing headers, selecting a status code and writing a response body.
+
+The \texttt{http.ResponseWriter} interface provides the methods \texttt{Header}, \texttt{WriteHeader} and \texttt{Write}. A handler should generally set relevant headers before committing the response.\\
+
+For example:
+
+\begin{lstlisting}
+func statusHandler(
+    w http.ResponseWriter,
+    r *http.Request,
+) {
+    w.Header().Set(
+        "Content-Type",
+        "text/plain; charset=utf-8",
+    )
+
+    w.WriteHeader(http.StatusOK)
+    fmt.Fprintln(w, "Request successful")
+}
+\end{lstlisting}
+
+The call to \texttt{WriteHeader} sets the HTTP status code. If the handler writes to the response body without explicitly setting a status code, the first body write normally commits an implicit status of \texttt{200 OK}.\\
+
+Once response headers have been committed, changing them may have no effect on the response already sent. Consequently, handlers should determine the appropriate status code and headers before writing the body.\\
+
+Common HTTP status codes include:
+
+\begin{itemize}
+    \item \texttt{200 OK}: the request succeeded.
+    \item \texttt{201 Created}: a resource was created successfully.
+    \item \texttt{204 No Content}: the request succeeded without a response body.
+    \item \texttt{400 Bad Request}: the request is invalid.
+    \item \texttt{401 Unauthorized}: authentication is required or has failed.
+    \item \texttt{403 Forbidden}: the server refuses the request.
+    \item \texttt{404 Not Found}: the requested resource does not exist or is unavailable.
+    \item \texttt{405 Method Not Allowed}: the resource does not support the requested method.
+    \item \texttt{500 Internal Server Error}: the server encountered an unexpected failure.
+    \item \texttt{503 Service Unavailable}: the server cannot currently handle the request.
+\end{itemize}
+
+The status code should communicate the outcome of the operation accurately. Returning \texttt{200 OK} for every outcome makes clients less able to distinguish successful requests from failures.\\
+
+\subsection{Returning JSON from an HTTP API}
+
+JSON is commonly used as the representation format for HTTP API responses. A handler can encode a Go structure using \texttt{json.NewEncoder} and write it directly to the response.
+
+\begin{lstlisting}
+package main
+
+import (
+    "encoding/json"
+    "net/http"
+)
+
+type User struct {
+    ID   int    `json:"id"`
+    Name string `json:"name"`
+}
+
+func userHandler(
+    w http.ResponseWriter,
+    r *http.Request,
+) {
+    user := User{
+        ID:   101,
+        Name: "Alice",
+    }
+
+    w.Header().Set(
+        "Content-Type",
+        "application/json",
+    )
+
+    w.WriteHeader(http.StatusOK)
+
+    if err := json.NewEncoder(w).Encode(user); err != nil {
+        // The response may already have been committed.
+        // Log the error; do not assume a new status
+        // code can still be sent.
+    }
+}
+
+func main() {
+    mux := http.NewServeMux()
+    mux.HandleFunc("GET /users/101", userHandler)
+
+    http.ListenAndServe(":8080", mux)
+}
+\end{lstlisting}
+
+The response body contains the JSON representation of the user, and the \texttt{Content-Type} header identifies the media type.\\
+
+The encoder writes directly to the response writer, avoiding the need to create an intermediate byte slice. This can be useful for streaming or larger responses.\\
+
+However, encoding may fail after some response bytes have already been written. In that situation, the handler generally cannot replace the response with a different status code and body. Applications that require all-or-nothing response generation can encode into a buffer first, check for errors and then write the completed result.\\
+
+The example is illustrative and does not implement database access, authentication or error handling for missing users. A production API should return appropriate status codes and avoid exposing internal implementation details through error responses.\\
+
+\subsection{Receiving JSON in HTTP Requests}
+
+An HTTP API frequently receives JSON in the body of a POST, PUT or PATCH request. The body can be decoded using \texttt{json.Decoder}.\\
+
+The following example implements a simple endpoint for creating a user:
+
+\begin{lstlisting}
+package main
+
+import (
+    "encoding/json"
+    "errors"
+    "io"
+    "net/http"
+)
+
+type User struct {
+    Name  string `json:"name"`
+    Email string `json:"email"`
+}
+
+func createUser(
+    w http.ResponseWriter,
+    r *http.Request,
+) {
+    r.Body = http.MaxBytesReader(
+        w,
+        r.Body,
+        1<<20,
+    )
+
+    defer r.Body.Close()
+
+    var user User
+
+    decoder := json.NewDecoder(r.Body)
+    decoder.DisallowUnknownFields()
+
+    if err := decoder.Decode(&user); err != nil {
+        var maxBytesErr *http.MaxBytesError
+
+        if errors.As(err, &maxBytesErr) {
+            http.Error(
+                w,
+                "Request body too large",
+                http.StatusRequestEntityTooLarge,
+            )
+            return
+        }
+
+        http.Error(
+            w,
+            "Invalid JSON request",
+            http.StatusBadRequest,
+        )
+        return
+    }
+
+    var extra any
+    err := decoder.Decode(&extra)
+
+    if err != io.EOF {
+        http.Error(
+            w,
+            "Request must contain one JSON value",
+            http.StatusBadRequest,
+        )
+        return
+    }
+
+    if user.Name == "" || user.Email == "" {
+        http.Error(
+            w,
+            "Name and email are required",
+            http.StatusBadRequest,
+        )
+        return
+    }
+
+    w.Header().Set("Content-Type", "application/json")
+    w.WriteHeader(http.StatusCreated)
+
+    _ = json.NewEncoder(w).Encode(user)
+}
+
+func main() {
+    mux := http.NewServeMux()
+    mux.HandleFunc("POST /users", createUser)
+
+    http.ListenAndServe(":8080", mux)
+}
+\end{lstlisting}
+
+The handler imposes a maximum request-body size of one mebibyte using \texttt{http.MaxBytesReader}. This limits the amount of data accepted through the body-reading operation and helps protect the server against excessively large requests.\\
+
+The decoder's \texttt{DisallowUnknownFields} method rejects JSON object properties that do not correspond to an appropriate field in the destination structure. This behaviour is stricter than the default unmarshalling rules.\\
+
+After decoding the first value, the handler attempts another decode and expects \texttt{io.EOF}. This rejects a second JSON value or trailing non-whitespace data, ensuring that the request contains a single JSON document rather than multiple consecutive values.\\
+
+The example also performs basic validation of the decoded fields. Successful JSON decoding does not imply that the supplied data is semantically valid. Applications must enforce domain-specific requirements, such as valid email formats, field-length limits and uniqueness constraints.\\
+
+The handler illustrates the main stages of request processing, but production implementations should additionally define a consistent error-response format, validate media types where appropriate, and handle persistence and other business logic.\\
+
+\subsection{Developing a RESTful API}
+
+REST (Representational State Transfer) is an architectural style in which resources are identified and manipulated through representations and a uniform interface. HTTP APIs frequently adopt REST-inspired conventions, although using HTTP and JSON alone does not automatically make an API RESTful.\\
+
+A user-management API might expose the following endpoints:
+
+\begin{center}
+\begin{tabular}{|l|l|l|}
+\hline
+\textbf{Method} & \textbf{Endpoint} & \textbf{Purpose} \\
+\hline
+GET & \texttt{/users} & Retrieve a collection of users \\
+GET & \texttt{/users/\{id\}} & Retrieve a specific user \\
+POST & \texttt{/users} & Create a user \\
+PUT & \texttt{/users/\{id\}} & Replace a user representation \\
+PATCH & \texttt{/users/\{id\}} & Partially modify a user \\
+DELETE & \texttt{/users/\{id\}} & Delete a user \\
+\hline
+\end{tabular}
+\end{center}
+
+These conventions make an API easier to understand and integrate with clients. However, each operation requires an appropriate implementation of validation, persistence, authentication, authorisation and error handling.\\
+
+The distinction between \texttt{PUT} and \texttt{PATCH} is especially important. PUT is generally used to replace a resource representation, whereas PATCH applies a partial modification according to the patch format being used.\\
+
+HTTP semantics also affect retry behaviour. GET is intended to be safe and idempotent, while PUT and DELETE are defined as idempotent methods. POST is not inherently idempotent, so retrying a POST request after a network failure may create duplicate resources unless the application implements suitable deduplication or idempotency mechanisms.
+
+\subsection{Implementing an HTTP Client}
+
+Go also provides extensive facilities for consuming HTTP APIs. The \texttt{http.Client} type sends requests and returns responses.\\
+
+The following example sends a GET request to an HTTP endpoint:
+
+\begin{lstlisting}
+package main
+
+import (
+    "encoding/json"
+    "fmt"
+    "net/http"
+    "time"
+)
+
+type User struct {
+    ID   int    `json:"id"`
+    Name string `json:"name"`
+}
+
+func main() {
+    client := &http.Client{
+        Timeout: 5 * time.Second,
+    }
+
+    response, err := client.Get(
+        "https://api.example.com/users/101",
+    )
+    if err != nil {
+        fmt.Println("Request failed:", err)
+        return
+    }
+    defer response.Body.Close()
+
+    if response.StatusCode != http.StatusOK {
+        fmt.Println(
+            "Unexpected status:",
+            response.Status,
+        )
+        return
+    }
+
+    var user User
+
+    if err := json.NewDecoder(
+        response.Body,
+    ).Decode(&user); err != nil {
+        fmt.Println("JSON decoding failed:", err)
+        return
+    }
+
+    fmt.Println(user.ID, user.Name)
+}
+\end{lstlisting}
+
+The client has a five-second timeout that bounds the overall duration of an individual HTTP transaction, including connection establishment, redirects and reading the response body. Applications with more specific requirements may configure transport-level time-outs and use request contexts.\\
+
+The response body must be closed after it has been consumed. Closing the body allows the HTTP implementation to release resources and may permit connection reuse, depending on whether the response body has been read sufficiently and other transport conditions.\\
+
+The client must also inspect the HTTP status code. The \texttt{Get} method generally returns a response for HTTP error statuses such as \texttt{404 Not Found}; these statuses do not ordinarily cause the method itself to return an error. The error return is instead used for failures such as network errors, invalid requests and certain redirect-related conditions.\\
+
+The \texttt{http.DefaultClient} is available for simple applications, but creating a reusable client with an explicit timeout is preferable when request duration must be bounded. HTTP clients and their transports are safe for concurrent use and are normally reused rather than created for every request.
+
+\subsection{Constructing HTTP Requests Explicitly}
+
+For greater control over headers, methods, request bodies and cancellation, applications can construct requests using \texttt{http.NewRequestWithContext} and send them through an \texttt{http.Client}.\\
+
+The following example sends a JSON POST request:
+
+\begin{lstlisting}
+package main
+
+import (
+    "bytes"
+    "context"
+    "encoding/json"
+    "fmt"
+    "net/http"
+    "time"
+)
+
+type User struct {
+    Name  string `json:"name"`
+    Email string `json:"email"`
+}
+
+func main() {
+    user := User{
+        Name:  "Alice",
+        Email: "alice@example.com",
+    }
+
+    data, err := json.Marshal(user)
+    if err != nil {
+        fmt.Println(err)
+        return
+    }
+
+    ctx, cancel := context.WithTimeout(
+        context.Background(),
+        5*time.Second,
+    )
+    defer cancel()
+
+    req, err := http.NewRequestWithContext(
+        ctx,
+        http.MethodPost,
+        "https://api.example.com/users",
+        bytes.NewReader(data),
+    )
+    if err != nil {
+        fmt.Println(err)
+        return
+    }
+
+    req.Header.Set(
+        "Content-Type",
+        "application/json",
+    )
+    req.Header.Set(
+        "Accept",
+        "application/json",
+    )
+
+    client := &http.Client{
+        Timeout: 10 * time.Second,
+    }
+
+    response, err := client.Do(req)
+    if err != nil {
+        fmt.Println("Request failed:", err)
+        return
+    }
+    defer response.Body.Close()
+
+    fmt.Println("Status:", response.Status)
+}
+\end{lstlisting}
+
+The request context imposes a five-second deadline on the operation, while the client timeout provides an additional upper bound. The earlier applicable deadline normally determines when the request is cancelled.\\
+
+The \texttt{Content-Type} header indicates the representation format of the request body, while the \texttt{Accept} header expresses a preference for the response representation. The server is not obliged to honour every \texttt{Accept} preference; it may return an appropriate error if no supported representation is acceptable.\\
+
+The \texttt{bytes.NewReader} function allows the encoded JSON bytes to be supplied as the request body without first writing them to a temporary file.\\
+
+In production code, the client should also interpret the response status and body, enforce suitable response-size limits when consuming untrusted services, and distinguish retryable failures from permanent errors.
+
+\subsection{Contexts, Deadlines and Cancellation}
+
+The \texttt{context} package provides a standard mechanism for propagating cancellation signals, deadlines and request-scoped values. It is particularly important in HTTP services, where requests may trigger database operations, downstream HTTP calls or other potentially long-running work.\\
+
+An incoming server request provides a context through \texttt{r.Context()}. The context is cancelled when the client connection closes, an HTTP/2 request is cancelled, or the handler returns, subject to the request's lifecycle and server behaviour.\\
+
+A handler can pass this context to downstream operations:
+
+\begin{lstlisting}
+func handler(
+    w http.ResponseWriter,
+    r *http.Request,
+) {
+    ctx := r.Context()
+
+    req, err := http.NewRequestWithContext(
+        ctx,
+        http.MethodGet,
+        "https://service.example.com/data",
+        nil,
+    )
+    if err != nil {
+        http.Error(
+            w,
+            "Unable to construct request",
+            http.StatusInternalServerError,
+        )
+        return
+    }
+
+    response, err := http.DefaultClient.Do(req)
+    if err != nil {
+        http.Error(
+            w,
+            "Upstream request failed",
+            http.StatusBadGateway,
+        )
+        return
+    }
+    defer response.Body.Close()
+
+    w.WriteHeader(http.StatusOK)
+}
+\end{lstlisting}
+
+Propagating the context allows the downstream request to be cancelled when the original request is cancelled. This reduces unnecessary work and helps prevent abandoned operations from consuming resources.\\
+
+Context cancellation is cooperative. Operations must observe the context or support cancellation for the cancellation signal to stop them. Code that ignores the context may continue running after the client has disconnected.\\
+
+\subsection{Middleware and Cross-Cutting Concerns}
+
+Middleware is a function or component that wraps an HTTP handler to provide functionality shared across multiple endpoints. Typical uses include request logging, authentication, authorisation, metrics collection, request identifiers, panic recovery and response-header management.\\
+
+Go's \texttt{http.Handler} interface makes middleware composition straightforward:
+
+\begin{lstlisting}
+func loggingMiddleware(
+    next http.Handler,
+) http.Handler {
+    return http.HandlerFunc(
+        func(
+            w http.ResponseWriter,
+            r *http.Request,
+        ) {
+            fmt.Println(
+                r.Method,
+                r.URL.Path,
+            )
+
+            next.ServeHTTP(w, r)
+        },
+    )
+}
+\end{lstlisting}
+
+The middleware receives the next handler and returns a new handler. When a request arrives, the wrapper performs its preliminary work and then delegates to the next handler.\\
+
+It can also perform post-processing after the next handler returns, making middleware suitable for measuring request duration or recording other response-related information. More advanced middleware may wrap the response writer, although such wrappers must preserve the optional interfaces and behaviours required by the underlying HTTP implementation.\\
+
+Middleware should be applied consistently and in an intentional order. For example, request identification may need to occur before logging, while authentication and authorisation must be enforced before protected application operations execute.\\
+
+\subsection{HTTP Time-outs and Server Configuration}
+
+An HTTP server should be configured with appropriate time-outs to protect against slow or incomplete requests and to prevent connections from consuming resources indefinitely.\\
+
+The following example shows an explicitly configured server:
+
+\begin{lstlisting}
+server := &http.Server{
+    Addr:              ":8080",
+    Handler:           mux,
+    ReadHeaderTimeout: 5 * time.Second,
+    ReadTimeout:       15 * time.Second,
+    WriteTimeout:      30 * time.Second,
+    IdleTimeout:       60 * time.Second,
+    MaxHeaderBytes:    1 << 20,
+}
+
+if err := server.ListenAndServe(); err != nil &&
+    err != http.ErrServerClosed {
+    log.Fatal(err)
+}
+\end{lstlisting}
+
+The configuration specifies several distinct controls:
+
+\begin{itemize}
+    \item \texttt{ReadHeaderTimeout} limits the time allowed to read request headers.
+    \item \texttt{ReadTimeout} limits the time allowed to read the entire request, including its body.
+    \item \texttt{WriteTimeout} limits the duration associated with writing a response.
+    \item \texttt{IdleTimeout} limits how long a keep-alive connection can remain idle between requests.
+    \item \texttt{MaxHeaderBytes} limits the size of request headers.
+\end{itemize}
+
+These values should be selected according to the application's requirements. For example, a service that accepts large uploads may need a different request-reading strategy from one that handles only small JSON messages.\\
+
+The server's read and write time-outs are not interchangeable with application-level deadlines. Long-running application work may need its own context deadlines, while streaming endpoints require particular care because an overly restrictive write timeout may interrupt legitimate long-lived responses.\\
+
+Graceful shutdown is another important production concern. The \texttt{Server.Shutdown} method allows a server to stop accepting new connections and wait for active requests to complete within a supplied context deadline. This is generally preferable to terminating the process abruptly.
+
+\subsection{HTTP Testing}
+
+Go includes the \texttt{net/http/httptest} package, which supports testing HTTP handlers and clients without requiring a production server or external network connection.
+
+For example:
+
+\begin{lstlisting}
+package main
+
+import (
+    "net/http"
+    "net/http/httptest"
+    "testing"
+)
+
+func helloHandler(
+    w http.ResponseWriter,
+    r *http.Request,
+) {
+    w.WriteHeader(http.StatusOK)
+    w.Write([]byte("hello"))
+}
+
+func TestHelloHandler(t *testing.T) {
+    request := httptest.NewRequest(
+        http.MethodGet,
+        "/",
+        nil,
+    )
+
+    response := httptest.NewRecorder()
+
+    helloHandler(response, request)
+
+    if response.Code != http.StatusOK {
+        t.Fatalf(
+            "expected status 200, got %d",
+            response.Code,
+        )
+    }
+
+    if response.Body.String() != "hello" {
+        t.Fatalf(
+            "unexpected body: %q",
+            response.Body.String(),
+        )
+    }
+}
+\end{lstlisting}
+
+The test constructs an HTTP request and a response recorder, invokes the handler directly, and checks the resulting status code and body.\\
+
+For integration tests involving routing, middleware, or actual HTTP client behaviour, \texttt{httptest.NewServer} can start a temporary local server. A client can then issue requests to its generated URL and inspect the resulting responses.\\
+
+Testing should cover successful requests, malformed JSON, missing fields, unsupported methods, oversized bodies, unauthorised access, and internal failures. Tests should also verify that the API returns appropriate status codes and does not expose sensitive implementation details in its error messages.\\
+
+\subsection{Security Considerations}
+
+HTTP and JSON support must be combined with suitable security controls when developing production APIs.
+
+\begin{itemize}
+    \item \textbf{Transport security:} Use HTTPS for sensitive data in transit and configure TLS appropriately.
+    \item \textbf{Input validation:} Treat all client-supplied JSON as untrusted. Validate field values, lengths, types and business constraints.
+    \item \textbf{Request-size limits:} Use mechanisms such as \texttt{http.MaxBytesReader} to constrain incoming bodies.
+    \item \textbf{Authentication and authorisation:} Verify the identity of clients and enforce access permissions for each protected operation.
+    \item \textbf{Error handling:} Avoid exposing stack traces, credentials, internal paths or sensitive diagnostic details to clients.
+    \item \textbf{Timeouts:} Configure suitable client and server time-outs to limit resource exhaustion.
+    \item \textbf{Resource management:} Close response bodies and other resources promptly, and ensure that cancellation propagates through downstream operations.
+    \item \textbf{Redirect handling:} Configure HTTP client redirect policies appropriately when requests involve credentials or sensitive data.
+\end{itemize}
+
+JSON decoding is not equivalent to validation. Even structurally valid JSON may contain unexpected values, excessive nesting, misleading identifiers or data that violates application invariants.\\
+
+Similarly, HTTPS does not replace authentication or authorisation. Protects transport confidentiality and integrity, but the application must still determine which clients are allowed to perform particular operations.\\
+
+\subsection{Conclusion}
+
+Go provides comprehensive standard-library support for JSON processing and HTTP API development. The \texttt{encoding/json} package supplies encoding and decoding mechanisms, while \texttt{net/http} provides the building blocks for clients, servers, routing, request handling, and response generation.\\
+
+The combination of these packages enables developers to build APIs with relatively little external infrastructure. Struct tags define JSON representations, interfaces promote reusable I/O operations, handlers implement endpoint behaviour, and contexts support cancellation and deadline propagation.\\
+
+However, robust API development requires more than successful JSON encoding and HTTP communication. Correct implementations must also validate input, manage errors, apply appropriate status codes, enforce security controls, limit resource consumption and test both normal and exceptional behaviour.\\
+
+By combining Go's standard-library facilities with explicit error handling and sound HTTP design, developers can produce services that are interoperable, maintainable, efficient and suitable for production deployment.

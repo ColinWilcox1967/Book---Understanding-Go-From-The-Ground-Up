@@ -1,0 +1,160 @@
+\section{Variables}
+
+In Go (Golang), a variable is a named storage location used to hold a value
+that can be accessed and changed while a program is running. Every variable
+has a data type, which determines what kind of value it can store and how that
+value is handled by the program.
+
+Variables can be declared using the \texttt{var} keyword. For example:
+
+\begin{lstlisting}
+var age int
+age = 25
+\end{lstlisting}
+
+This declares a variable called \texttt{age} with the \texttt{int} data type
+and assigns it the value \texttt{25}. A variable can also be declared and
+initialised at the same time:
+
+\begin{lstlisting}
+var age int = 25
+\end{lstlisting}
+
+Go can infer the data type from the assigned value, so the type can often be
+omitted:
+
+\begin{lstlisting}
+var age = 25
+\end{lstlisting}
+
+Inside a function, Go also provides short variable declaration using the
+\texttt{:=} operator:
+
+\begin{lstlisting}
+name := "Alice"
+score := 95
+\end{lstlisting}
+
+The \texttt{:=} operator declares and initialises a new variable, with Go
+automatically determining its data type. Short declarations are commonly used
+within functions, whereas \texttt{var} is required when a variable needs to be
+declared without an initial value or in certain package-level declarations.
+
+Variables can have their values changed after declaration, provided that the
+new value is compatible with their data type:
+
+\begin{lstlisting}
+score := 95
+score = 100
+\end{lstlisting}
+
+Go is \textbf{statically typed}, meaning that the type of a variable is
+determined at compile time and cannot normally be changed to an unrelated
+type during execution. For example:
+
+\begin{lstlisting}
+age := 25
+age = "twenty-five"    // Compilation error
+\end{lstlisting}
+
+This produces a compilation error because \texttt{age} was initially declared
+as an integer and cannot subsequently be assigned a string.
+
+
+\section{Data Types}
+
+A data type defines the kind of data that a variable can contain. Go provides
+several built-in data types, including numeric types, strings and Boolean
+values. Choosing an appropriate data type helps the compiler determine how
+values should be stored and what operations can be performed on them.
+
+
+\subsection{Integer Types}
+
+The \texttt{int} type is used for whole numbers without decimal places:
+
+\begin{lstlisting}
+var age int = 25
+\end{lstlisting}
+
+Go also provides explicitly sized integer types, such as \texttt{int8},
+\texttt{int16}, \texttt{int32} and \texttt{int64}. The number indicates the
+number of bits used to represent the integer.
+
+Unsigned integer types, such as \texttt{uint}, \texttt{uint8} and
+\texttt{uint64}, can only represent zero and positive values.
+
+
+\subsection{Floating-Point Types}
+
+The \texttt{float32} and \texttt{float64} types are used to represent numbers
+containing decimal values:
+
+\begin{lstlisting}
+var temperature float64 = 21.5
+\end{lstlisting}
+
+The \texttt{float64} type provides greater precision than \texttt{float32}
+and is commonly used when greater numerical precision is required.
+
+
+\subsection{Strings}
+
+The \texttt{string} type represents a sequence of characters:
+
+\begin{lstlisting}
+var name string = "Alice"
+\end{lstlisting}
+
+Strings can also be created using short variable declaration:
+
+\begin{lstlisting}
+message := "Hello, world!"
+\end{lstlisting}
+
+Strings are commonly used for text such as names, messages and user input.
+
+
+\subsection{Boolean Values}
+
+The \texttt{bool} type represents a logical value and can contain either
+\texttt{true} or \texttt{false}:
+
+\begin{lstlisting}
+var loggedIn bool = true
+\end{lstlisting}
+
+Boolean variables are commonly used in conditional statements:
+
+\begin{lstlisting}
+if loggedIn {
+    fmt.Println("User is logged in")
+}
+\end{lstlisting}
+
+
+\subsection{Other Go Data Types}
+
+Go also provides more complex data types, including arrays, slices, maps,
+structs, pointers, interfaces and functions. These allow programs to
+represent collections of values, structured records and more complex
+relationships between data.
+
+For example, a slice can store multiple values of the same type:
+
+\begin{lstlisting}
+numbers := []int{10, 20, 30}
+\end{lstlisting}
+
+A map stores values using keys:
+
+\begin{lstlisting}
+ages := map[string]int{
+    "Alice": 25,
+    "Bob":   30,
+}
+\end{lstlisting}
+
+Go's strong and static type system allows many type-related errors to be
+detected during compilation rather than when the program is running. This
+helps improve the reliability and predictability of Go programs.

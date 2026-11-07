@@ -1,0 +1,615 @@
+\section{Go Toolchain}
+The Go toolchain is the collection of programs and commands used to
+develop, build, test, analyse, and package programs written in the Go
+programming language.  It is distributed with Go itself and is designed
+to provide a standard and largely automated development workflow.\\
+
+The main command is \texttt{go}.  Rather than requiring developers to
+invoke a compiler, linker, archiver, test runner, and other tools
+individually, the \texttt{go} command coordinates these components.\\
+
+A typical workflow can be represented as
+
+\textbf{
+\[
+\text{Source code}
+\longrightarrow
+\text{Packages}
+\longrightarrow
+\text{Compilation}
+\longrightarrow
+\text{Linking}
+\longrightarrow
+\text{Executable}
+\]
+}
+
+with testing, formatting, dependency management, and analysis occurring
+alongside these stages.
+
+\subsection{Installing and Configuring Go}
+
+The first step is to installing a Go distribution.  This provides the
+compiler, standard library, \texttt{go} command, and supporting
+development tools.\\
+
+After installation, the command is executed.
+
+\begin{lstlisting}
+go version
+\end{lstlisting}
+
+can be used to verify that Go is available.\\
+
+For example:
+
+\begin{lstlisting}
+$ go version
+go version go1.25.0 linux/amd64
+\end{lstlisting}
+
+The exact version will depend on the installed release.
+
+\subsection*{Why is this needed?}
+
+The compiler and associated tools are required to transform Go source
+code into executable programs.  The Go installation also provides the
+standard library, which contains commonly used packages such as
+\texttt{fmt}, \texttt{os}, \texttt{net/http}, and \texttt{encoding/json}.
+
+\subsection{Creating a Go Module}
+
+Modern Go projects normally use a Go module to define the project's
+module path and manage dependencies.\\
+
+A module can be created with this feature.
+
+\begin{lstlisting}
+go mod init example.com/hello
+\end{lstlisting}
+
+This creates a file named \texttt{go.mod}.  A simplified example is as follows:
+
+\begin{lstlisting}
+module example.com/hello
+
+go 1.25
+\end{lstlisting}
+
+The module path identifies the project and provides the namespace used
+when importing packages belonging to the module.
+
+\subsection*{Why is this needed?}
+
+A Go program may consist of many packages and may depend on packages
+provided by other modules.  The module system gives enough information for the Go toolchain  to determine which dependencies are required and
+which versions should be used.\\
+
+For example, a project might have the following structure:
+
+\begin{lstlisting}
+hello/
+|-- go.mod
+|-- main.go
+|-- internal/
+|   `-- greeting/
+|       `-- greeting.go
+\end{lstlisting}
+
+The \texttt{go.mod} file establishes the root of the module and allows
+the toolchain to resolve imports consistently.
+
+\subsection{Writing Go Source Code}
+
+Go programs are normally organised into packages.  The simplest
+executable program belongs to the \texttt{main} package and contains a
+\texttt{main} function.\\
+
+For example:
+
+\begin{lstlisting}
+package main
+
+import "fmt"
+
+func main() {
+    fmt.Println("Hello, world!")
+}
+\end{lstlisting}
+
+The source file can be saved as \texttt{main.go}.
+
+\subsection*{Why is this needed?}
+
+The source code expresses the behaviour of the program.  The Go
+toolchain operates on packages rather than treating every source file
+as an entirely independent compilation unit.\\
+
+Files belonging to the same package are compiled together.  This allows
+the compiler to perform type checking and determine relationships
+between declarations within the package.
+
+\subsection{Formatting the Source Code}
+
+Go provides a standard formatter through
+
+\begin{lstlisting}
+gofmt
+\end{lstlisting}
+
+or, more commonly,
+
+\begin{lstlisting}
+go fmt ./...
+\end{lstlisting}
+
+For example, code such as
+
+\begin{lstlisting}
+func main(){fmt.Println("Hello")}
+\end{lstlisting}
+
+will be formatted in the conventional Go style:
+
+\begin{lstlisting}
+func main() {
+    fmt.Println("Hello")
+}
+\end{lstlisting}
+
+\subsection*{Why is this needed?}
+
+Formatting is not required for the compiler to understand valid Go
+programmes, but it is important for consistency.  Go deliberately has a
+strong standard formatting convention.\\
+
+This means that different developers and projects generally use the
+same layout, reducing unnecessary arguments about indentation,
+braces, spacing, and similar stylistic details.
+
+\subsection{Resolving Dependencies}
+
+If a project imports a package from another module, the Go toolchain
+must locate the required module version.
+
+For example:
+
+\begin{lstlisting}
+import "example.com/some/library"
+\end{lstlisting}
+
+The required dependency is recorded in \texttt{go.mod}.  The command
+
+\begin{lstlisting}
+go mod tidy
+\end{lstlisting}
+
+can be used to ensure that the module files accurately describe the
+dependencies used by the project.\\
+
+The toolchain may also create or update \texttt{go.sum}, which contains
+checksums used to verify the downloaded module content.
+
+\subsection*{Why is this needed?}
+
+A compiler cannot compile an import that it cannot locate.  Dependency
+resolution therefore establishes the set of packages that are required
+before compilation can take place.\\
+
+The module system also makes builds more reproducible by recording
+dependency versions rather than relying solely on whatever happens to
+be installed on a developer's machine.
+
+\subsection{Loading and Analysing Packages}
+
+When a command such as
+
+\begin{lstlisting}
+go build
+\end{lstlisting}
+
+When executed, the Go toolchain first determines which packages are
+involved and how they depend on one another.\\
+
+For example:
+
+\begin{lstlisting}
+main
+ |
+ +-- internal/greeting
+ |
+ `-- fmt
+\end{lstlisting}
+
+The toolchain constructs the relevant package dependency graph.
+
+\subsection*{Why is this needed?}
+
+The compiler must know which source files belong to each package and
+which imported packages are required.  The dependency graph also
+allows independent packages to be compiled separately and, where
+appropriate, in parallel.
+
+\subsection{Type Checking}
+
+The Go compiler analyses the source code and checks that it obeys the
+rules of the Go language.\\
+
+For example:
+
+\begin{lstlisting}
+var number int
+number = "hello"
+\end{lstlisting}
+
+is invalid because a value of type \texttt{string} is being assigned to
+a variable of type \texttt{int}.\\
+
+The compiler reports an error rather than producing a normal executable.
+
+\subsection*{Why is this needed?}
+
+Type checking detects many programming errors before the programme is
+run.  Go is statically typed, so the compiler can determine many
+properties of a program during compilation.
+
+This is one of the reasons for the simplicity of a simple command such as
+
+\begin{lstlisting}
+go build
+\end{lstlisting}
+
+can catch substantial classes of programming errors.
+
+\subsection{Compiling Packages}
+
+After source analysis and type checking, the Go compiler translates the
+source code into compiled object information.\\
+
+Conceptually:
+
+\[
+\text{Go source}
+\longrightarrow
+\text{compiled package}
+\]
+
+The compiler is normally invoked indirectly through the \texttt{go}
+command rather than being called manually.
+
+For example:
+
+\begin{lstlisting}
+go build
+\end{lstlisting}
+
+causes the necessary packages to be compiled.
+
+\subsection*{Why is this needed?}
+
+The source code is written for humans and expresses the programme behaviour in the
+Go language.  The processor cannot directly execute Go source code.
+Compilation translates it into a form suitable for subsequent linking
+and execution.\\
+
+The compiler also performs important optimisations and generates
+machine code appropriate for the selected target architecture.
+
+\subsection{Linking}
+
+An executable program normally consists of more than the code written
+in \texttt{main.go}.  It may depend on many packages, including
+packages from the standard library.\\
+
+The linker combines the required compiled components into an executable
+program.\\
+
+Conceptually:
+
+\[
+\text{compiled packages}
+\longrightarrow
+\text{linker}
+\longrightarrow
+\text{executable}
+\]
+
+For example:
+
+\begin{lstlisting}
+go build -o hello
+\end{lstlisting}
+
+can produce an executable named \texttt{hello}.
+
+\subsection*{Why is this needed?}
+
+Compilation produces code for individual packages, whereas an
+executable needs to contain the program as a complete linked unit.\\
+
+The linker resolves references between the compiled components and
+constructs the final executable image.
+
+\subsection{Building the Program}
+
+The command
+
+\begin{lstlisting}
+go build
+\end{lstlisting}
+
+coordinates the previous stages.
+
+A simplified model is as follows:
+
+\begin{enumerate}[label=\arabic*.]
+    \item Load the module and packages.
+    \item Resolve required dependencies.
+    \item Compile packages that need compiling.
+    \item Link the required components.
+    \item Produce an executable when appropriate.
+\end{enumerate}
+
+For example:
+
+\begin{lstlisting}
+go build -o hello
+./hello
+\end{lstlisting}
+
+might produce:
+
+\begin{lstlisting}
+Hello, world!
+\end{lstlisting}
+
+\subsection*{Why is this needed?}
+
+\texttt{go build} provides a convenient abstraction over the compiler
+and linker.  Developers normally do not need to know the exact compiler
+or linker command required for every package in the program.
+
+\subsection{Running Without Explicitly Building}
+
+Go also provides:
+
+\begin{lstlisting}
+go run .
+\end{lstlisting}
+
+This builds the necessary program and runs it.
+
+For a small program, one can therefore write:
+
+\begin{lstlisting}
+go run main.go
+\end{lstlisting}
+
+\subsection*{Why is this needed?}
+
+\texttt{go run} is particularly convenient during development when the
+developer wants to execute a program without keeping a separately
+managed executable.\\
+
+It should not be interpreted as meaning that the Go source code is directly
+executed by the processor.  The necessary compilation still occurs.
+
+\subsection{Testing}
+
+Go has testing support built into its toolchain.  Tests are commonly
+placed in files ending in \texttt{\_test.go}.\\
+
+For example:
+
+\begin{lstlisting}
+func Add(a, b int) int {
+    return a + b
+}
+\end{lstlisting}
+
+could be tested with:
+
+\begin{lstlisting}
+func TestAdd(t *testing.T) {
+    if Add(2, 3) != 5 {
+        t.Fatal("expected 5")
+    }
+}
+\end{lstlisting}
+
+Tests can be executed using:
+
+\begin{lstlisting}
+go test ./...
+\end{lstlisting}
+
+Compilation tells us that the program is syntactically and
+type-theoretically valid, but it does not prove that the program
+produces the desired results.\\
+
+Tests provide executable checks of the program's behaviour. The distinction is important:
+
+\[
+\text{Compilation} \neq \text{Correctness}
+\]
+
+A program can compile successfully and still contain serious logical
+errors.
+
+\subsection{Static Analysis}
+
+Go also provides analysis tools that inspect source code without
+executing the program.
+
+A commonly used command is:
+
+\begin{lstlisting}
+go vet ./...
+\end{lstlisting}
+
+It can identify certain suspicious or incorrect programming constructs.
+
+\subsection*{Why is this needed?}
+
+Some problems are difficult or impossible to identify simply by
+checking whether the programme compiles.  Static analysis can identify
+patterns that are legal Go but are likely to indicate a programming
+mistake.
+
+Thus, a typical quality-orientated workflow is as follows.
+
+\[
+\text{format}
+\rightarrow
+\text{build}
+\rightarrow
+\text{test}
+\rightarrow
+\text{analyse}
+\]
+
+\subsection{Cross Compilation}
+
+One notable feature of the Go toolchain is straightforward
+cross-compilation.\\
+
+For example, a developer on Linux can build for another operating
+system and architecture by setting environment variables such as
+\texttt{GOOS} and \texttt{GOARCH}:
+
+\begin{lstlisting}
+GOOS=windows GOARCH=amd64 go build -o hello.exe
+\end{lstlisting}
+
+The resulting executable targets Windows on the AMD64 architecture.
+
+\subsection*{Why is this needed?}
+
+Software is often developed on one platform but deployed on another.
+Cross-compilation allows a developer or build server to produce
+binaries for deployment targets without necessarily running the build
+on the target operating system.\\
+
+Conceptually:
+
+\[
+\text{Development machine}
+\xrightarrow{\text{Go toolchain}}
+\text{Target executable}
+\]
+
+\subsection{Caching}
+
+The Go toolchain maintains build caches.  When a package has already
+been compiled and its relevant inputs have not changed, the toolchain
+can reuse the cached result.\\
+
+Large projects can contain many packages.  Recompiling every package
+after every small source-code change would be unnecessarily expensive.\\
+
+Caching therefore reduces build times while preserving correctness:
+if an input that affects a package changes, the relevant package is
+rebuilt.\\
+
+\subsection{The Complete Development Cycle}
+
+A practical Go development workflow can therefore be summarised as:
+
+\begin{enumerate}
+    \item \textbf{Initialise a module} using \texttt{go mod init}.
+    \item \textbf{Write source code} organised into packages.
+    \item \textbf{Format the code} using \texttt{gofmt} or
+          \texttt{go fmt}.
+    \item \textbf{Resolve dependencies} using the Go module system.
+    \item \textbf{Compile and type-check} the packages.
+    \item \textbf{Link} the compiled packages into an executable.
+    \item \textbf{Run} the program using \texttt{go run} or the
+          resulting executable.
+    \item \textbf{Test} the program using \texttt{go test}.
+    \item \textbf{Analyse} it using tools such as \texttt{go vet}.
+    \item \textbf{Build for deployment}, potentially using
+          cross-compilation.
+\end{enumerate}
+
+The relationship between these activities can be visualised as:
+
+\[
+\boxed{
+\begin{array}{c}
+\text{Go source files}\\
+\downarrow\\
+\text{Formatting}\\
+\downarrow\\
+\text{Package loading}\\
+\downarrow\\
+\text{Dependency resolution}\\
+\downarrow\\
+\text{Parsing and type checking}\\
+\downarrow\\
+\text{Compilation}\\
+\downarrow\\
+\text{Linking}\\
+\downarrow\\
+\text{Executable}
+\end{array}}
+\]
+
+Testing and static analysis operate alongside this pipeline:
+
+\[
+\begin{array}{ccccc}
+& \text{Source code} & & &\\
+& \downarrow & & &\\
+\text{Formatting} & \rightarrow & \text{Build} & \rightarrow &
+\text{Executable}\\
+& & \downarrow & &\\
+& & \text{Tests} & &\\
+& & \downarrow & &\\
+& & \text{Static analysis} & &
+\end{array}
+\]
+
+\subsection{Conclusion}
+
+The Go toolchain is deliberately integrated.  The developer generally
+interacts with the single \texttt{go} command rather than manually
+coordinating separate compilation, linking, dependency-management,
+testing, and packaging commands.\\
+
+Its central purpose is to turn a collection of Go source files and
+their dependencies into a reliable, executable programme while making
+common development activities predictable and repeatable.\\
+
+In simplified form:
+
+\[
+\boxed{
+\text{Source}
+\rightarrow
+\text{Packages}
+\rightarrow
+\text{Type checking}
+\rightarrow
+\text{Compilation}
+\rightarrow
+\text{Linking}
+\rightarrow
+\text{Executable}
+}
+\]
+
+with
+
+\[
+\boxed{
+\text{Formatting}
+\quad
+\text{Testing}
+\quad
+\text{Static analysis}
+\quad
+\text{Dependency management}
+}
+\]
+
+supporting the main build pipeline.

@@ -1,0 +1,599 @@
+\section{Error Handling in the Go Programming Language}
+
+Error handling is a fundamental aspect of software development that enables a programme to detect, communicate, and respond to exceptional or unsuccessful operating conditions. In the Go programming language, error handling is primarily based on explicit error values, which are returned by functions alongside their normal results. This approach encourages developers to consider potential failures directly within the programme's control flow rather than relying exclusively on exceptions.
+
+Go defines the predeclared \texttt{error} interface as the standard mechanism for representing errors. Functions that may fail commonly return an \texttt{error} value, allowing the calling code to determine whether an operation succeeded and, if necessary, take appropriate corrective action. The language also provides mechanisms for creating errors, wrapping and inspecting errors, propagating failures, and recovering from panics.
+
+This section describes the principles of error handling in Go, the \texttt{error} interface, error creation and propagation, error wrapping, sentinel errors, custom error types, panic and recovery, and best practices for designing reliable applications.
+
+\subsection{Principles of Error Handling in Go}
+
+Go adopts an explicit approach to error handling. Instead of automatically transferring execution to an exception handler when an operation fails, a function usually returns an error value that its caller must examine.
+
+For example, a function that converts a string into an integer may return both the converted value and an error:
+
+\begin{lstlisting}
+package main
+
+import (
+    "fmt"
+    "strconv"
+)
+
+func main() {
+    number, err := strconv.Atoi("123")
+
+    if err != nil {
+        fmt.Println("Conversion failed:", err)
+        return
+    }
+
+    fmt.Println("Number:", number)
+}
+\end{lstlisting}
+
+The \texttt{strconv.Atoi} function returns an integer and an error. If the conversion succeeds, the error is \texttt{nil}; otherwise, it describes the failure.
+
+The condition \texttt{err != nil} determines whether the operation has failed. If an error is present, the programme reports the problem and returns from the function. Otherwise, execution continues using the converted value.
+
+This approach makes failure handling visible in the source code and allows developers to decide how errors should be addressed at each level of an application.
+
+\subsection{The Error Interface}
+
+Go defines the built-in \texttt{error} interface as follows:
+
+\begin{lstlisting}
+type error interface {
+    Error() string
+}
+\end{lstlisting}
+
+An error value is therefore any value whose type implements the \texttt{Error} method with the specified signature. The method returns a string describing the error.
+
+The \texttt{error} interface allows different concrete types to represent failures through a common abstraction. A programme does not need to know the concrete type of an error merely to display its message.
+
+For example:
+
+\begin{lstlisting}
+func divide(a, b float64) (float64, error) {
+    if b == 0 {
+        return 0, errors.New(
+            "division by zero",
+        )
+    }
+
+    return a / b, nil
+}
+\end{lstlisting}
+
+The function returns a numerical result and an error. If the divisor is zero, it returns an error value; otherwise, it returns the quotient and \texttt{nil}.
+
+A caller can handle the result as follows:
+
+\begin{lstlisting}
+result, err := divide(10, 2)
+
+if err != nil {
+    fmt.Println("Error:", err)
+    return
+}
+
+fmt.Println(result) // 5
+\end{lstlisting}
+
+This design separates the normal result from the description of a failure and enables the calling code to choose an appropriate response.
+
+\subsection{Creating Errors}
+
+Go provides several mechanisms for creating error values. The simplest approach is to use the \texttt{errors.New} function from the standard-library \texttt{errors} package.
+
+\subsubsection{Using \texttt{errors.New}}
+
+The \texttt{errors.New} function creates an error with a specified message.
+
+\begin{lstlisting}
+import "errors"
+
+err := errors.New("invalid configuration")
+\end{lstlisting}
+
+The returned value implements the \texttt{error} interface and can be returned from a function or passed to another component.
+
+This mechanism is suitable for simple errors that require a descriptive message but do not need to contain additional structured information.
+
+\subsubsection{Using \texttt{fmt.Errorf}}
+
+The \texttt{fmt.Errorf} function creates formatted error messages. It is useful when the error description depends on variables or other runtime information.
+
+\begin{lstlisting}
+import "fmt"
+
+func validateAge(age int) error {
+    if age < 0 {
+        return fmt.Errorf(
+            "invalid age: %d",
+            age,
+        )
+    }
+
+    return nil
+}
+\end{lstlisting}
+
+If the supplied age is negative, the function returns an error containing the invalid value.
+
+The \texttt{fmt.Errorf} function can also wrap an existing error using the \texttt{\%w} formatting directive. This capability is particularly useful when errors need to retain their original identity or type while gaining additional context.
+
+\subsection{Returning and Propagating Errors}
+
+A common convention in Go is to return an error as the final result of a function when the operation may fail. The caller typically checks the error before using the other return values.
+
+For example:
+
+\begin{lstlisting}
+func calculateSquareRoot(value float64) (
+    float64, error,
+) {
+    if value < 0 {
+        return 0, fmt.Errorf(
+            "cannot calculate square root of %f",
+            value,
+        )
+    }
+
+    return math.Sqrt(value), nil
+}
+\end{lstlisting}
+
+The function returns an error for negative inputs because the real-valued square root is undefined for such values.
+
+Errors are often propagated to higher levels of the call hierarchy. A function may detect that an operation has failed without being responsible for deciding how the failure should ultimately be handled.
+
+\begin{lstlisting}
+func processValue(value float64) error {
+    result, err := calculateSquareRoot(value)
+    if err != nil {
+        return err
+    }
+
+    fmt.Println("Result:", result)
+    return nil
+}
+\end{lstlisting}
+
+In this example, \texttt{processValue} propagates the error returned by \texttt{calculateSquareRoot}. It does not attempt to recover from the invalid input because the appropriate response may depend on the caller.
+
+This style encourages a clear separation between detecting errors, propagating errors, and deciding how to respond to them.
+
+\subsection{Handling Errors Explicitly}
+
+A caller should generally check an error before using a result that may be invalid because of the failed operation.
+
+\begin{lstlisting}
+result, err := calculateSquareRoot(-4)
+
+if err != nil {
+    fmt.Println("Calculation failed:", err)
+    return
+}
+
+fmt.Println(result)
+\end{lstlisting}
+
+The function exits early if the calculation fails. This pattern is common in Go and prevents the main logic from becoming deeply nested inside conditional statements.
+
+When several operations may fail, each error can be checked immediately after the operation:
+
+\begin{lstlisting}
+data, err := os.ReadFile("input.txt")
+if err != nil {
+    return err
+}
+
+text := strings.TrimSpace(string(data))
+fmt.Println(text)
+\end{lstlisting}
+
+The function returns the file-reading error rather than continuing with data that was not successfully obtained.
+
+Not every error must be returned to a caller. Some errors can be handled locally, for example by retrying an operation, selecting a default value, or skipping an optional resource. The appropriate strategy depends on the semantics of the operation and the requirements of the application.
+
+\subsection{Wrapping Errors with Additional Context}
+
+Error wrapping allows a programme to add contextual information to an existing error while preserving the underlying error for subsequent inspection.
+
+The \texttt{\%w} formatting directive of \texttt{fmt.Errorf} is used for this purpose.
+
+\begin{lstlisting}
+func readConfiguration(path string) error {
+    _, err := os.ReadFile(path)
+    if err != nil {
+        return fmt.Errorf(
+            "reading configuration file %q: %w",
+            path,
+            err,
+        )
+    }
+
+    return nil
+}
+\end{lstlisting}
+
+If reading the file fails, the returned error contains both the operation being performed and the original error.
+
+For example, the resulting message may indicate that reading a particular configuration file failed because the file does not exist.
+
+Wrapping is valuable because the same low-level error may arise in several contexts. Additional information helps identify which operation failed without discarding the underlying cause.
+
+In modern Go, the standard-library \texttt{errors} package provides functions for inspecting wrapped errors.
+
+\subsection{Inspecting Errors with \texttt{errors.Is}}
+
+The \texttt{errors.Is} function determines whether an error matches a specified target error, including errors contained within a wrapping chain.
+
+A sentinel error is a predefined error value used to represent a recognisable condition.
+
+\begin{lstlisting}
+var ErrNotFound = errors.New("record not found")
+\end{lstlisting}
+
+A function can return this error when a requested record does not exist:
+
+\begin{lstlisting}
+func findRecord(id int) error {
+    if id <= 0 {
+        return fmt.Errorf(
+            "find record %d: %w",
+            id,
+            ErrNotFound,
+        )
+    }
+
+    return nil
+}
+\end{lstlisting}
+
+The caller can determine whether the returned error matches the sentinel error:
+
+\begin{lstlisting}
+err := findRecord(0)
+
+if errors.Is(err, ErrNotFound) {
+    fmt.Println("The record does not exist")
+}
+\end{lstlisting}
+
+The \texttt{errors.Is} function is preferable to comparing error messages because messages may change and wrapping may add additional text.
+
+Sentinel errors are useful for conditions that callers need to recognise consistently, such as an absent record, an unavailable resource, or the end of a stream.
+
+\subsection{Inspecting Errors with \texttt{errors.As}}
+
+The \texttt{errors.As} function determines whether an error or one of its wrapped errors matches a specified target type. It is useful when an error contains structured information that callers need to inspect.
+
+For example, the \texttt{os} package defines the \texttt{PathError} type, which contains information about a failed file-system operation.
+
+\begin{lstlisting}
+data, err := os.ReadFile("missing.txt")
+
+if err != nil {
+    var pathErr *os.PathError
+
+    if errors.As(err, &pathErr) {
+        fmt.Println("Operation:", pathErr.Op)
+        fmt.Println("Path:", pathErr.Path)
+    }
+
+    return
+}
+
+fmt.Println(string(data))
+\end{lstlisting}
+
+If the error chain contains a value of type \texttt{*os.PathError}, \texttt{errors.As} assigns that value to \texttt{pathErr} and returns \texttt{true}.
+
+This approach is useful when callers need to inspect error-specific fields rather than relying only on a textual message.
+
+The distinction between \texttt{errors.Is} and \texttt{errors.As} is important: the former checks whether an error matches a target error, whereas the latter searches for an error of a particular type.
+
+\subsection{Custom Error Types}
+
+Go allows developers to define custom error types by declaring a type that implements the \texttt{Error() string} method. Custom errors are appropriate when a failure requires structured information beyond a textual description.
+
+For example:
+
+\begin{lstlisting}
+type ValidationError struct {
+    Field   string
+    Message string
+}
+
+func (e ValidationError) Error() string {
+    return fmt.Sprintf(
+        "%s: %s",
+        e.Field,
+        e.Message,
+    )
+}
+\end{lstlisting}
+
+The custom error contains the name of the field that failed validation and a description of the problem.
+
+A validation function can return this error:
+
+\begin{lstlisting}
+func validateUsername(name string) error {
+    if name == "" {
+        return ValidationError{
+            Field:   "username",
+            Message: "must not be empty",
+        }
+    }
+
+    return nil
+}
+\end{lstlisting}
+
+The caller can display the error message or inspect its fields using \texttt{errors.As}.
+
+\begin{lstlisting}
+err := validateUsername("")
+
+if err != nil {
+    var validationErr ValidationError
+
+    if errors.As(err, &validationErr) {
+        fmt.Println("Field:", validationErr.Field)
+        fmt.Println("Reason:", validationErr.Message)
+    }
+}
+\end{lstlisting}
+
+Custom error types are particularly useful in applications that distinguish between validation failures, authentication failures, resource-access failures, and other categories of errors.
+
+\subsection{Sentinel Errors and Custom Error Types}
+
+Sentinel errors and custom error types solve related but different problems.
+
+A sentinel error is a predefined error value used to identify a particular condition. It is appropriate when callers need to distinguish a known failure without requiring additional structured information.
+
+A custom error type is useful when the failure carries data that callers may need to examine. For example, a validation error might include a field name, an invalid value, and a reason for rejection.
+
+These approaches can be combined. A custom error type may wrap a sentinel error, allowing callers to inspect both the category of the failure and its structured details.
+
+The choice should be guided by the public contract of the package. Error messages are primarily intended for human interpretation, while sentinel values and custom types provide more stable mechanisms for programmatic decisions.
+
+\subsection{Multiple Errors}
+
+Some operations may encounter several independent errors. Go provides mechanisms for returning or combining multiple errors when reporting only one would lose relevant information.
+
+The standard-library \texttt{errors.Join} function combines multiple errors into a single error value. The resulting error supports inspection through \texttt{errors.Is} and \texttt{errors.As}.
+
+\begin{lstlisting}
+err1 := errors.New("configuration missing")
+err2 := errors.New("database unavailable")
+
+combined := errors.Join(err1, err2)
+
+fmt.Println(combined)
+
+fmt.Println(errors.Is(combined, err1)) // true
+fmt.Println(errors.Is(combined, err2)) // true
+\end{lstlisting}
+
+This facility is useful when a programme performs several independent operations and needs to report all relevant failures together.
+
+For example, a shutdown routine may need to close several resources and report any errors that occur while closing them. Combining the errors allows the caller to inspect the individual failures without discarding them.
+
+Multiple-error handling should be used where the failures are meaningfully independent. When one operation depends on the success of another, returning immediately after the first failure may be clearer and safer.
+
+\subsection{Panics and Their Relationship to Errors}
+
+A panic represents an abnormal condition that interrupts the ordinary flow of execution. It is different from a conventional error return, which allows the caller to decide explicitly how to proceed.
+
+A panic can be triggered using the built-in \texttt{panic} function.
+
+\begin{lstlisting}
+func requirePositive(value int) {
+    if value <= 0 {
+        panic("value must be positive")
+    }
+}
+\end{lstlisting}
+
+When a panic occurs, the current function stops executing normally. The run-time begins unwinding the stack, executing deferred functions as it proceeds. If the panic is not recovered, the programme terminates after the panic is reported.
+
+Panics are generally appropriate for unrecoverable programming errors or situations in which continuing would be unsafe. They are not normally the preferred mechanism for reporting expected failures such as invalid user input, a missing file, or a network timeout.
+
+For expected operational failures, returning an error is usually clearer because the caller can handle the failure through ordinary control flow.
+
+\subsection{Recovering from Panics}
+
+Go provides the built-in \texttt{recover} function, which can regain control during the unwinding of a panic. It is effective only when called directly by a deferred function in the same goroutine as the panic.
+
+For example:
+
+\begin{lstlisting}
+func safeOperation() {
+    defer func() {
+        if value := recover(); value != nil {
+            fmt.Println("Recovered from panic:", value)
+        }
+    }()
+
+    panic("unexpected condition")
+}
+\end{lstlisting}
+
+When the panic occurs, the deferred function executes and calls \texttt{recover}. If a panic is active, \texttt{recover} returns the value supplied to \texttt{panic}, allowing the function to regain control.
+
+Recovery should be used carefully. Silently recovering from every panic can hide programming defects and leave application state inconsistent. It is most appropriate at deliberate boundaries, such as a server request handler, where the application needs to isolate a failure and prevent it from terminating unrelated work.
+
+A panic in one goroutine cannot be recovered by a deferred function running in another goroutine. Each goroutine must handle its own panic if recovery is required.
+
+\subsection{Deferred Functions and Resource Cleanup}
+
+The \texttt{defer} statement schedules a function call to execute when the surrounding function returns, whether through a normal return or during panic unwinding.
+
+Deferred calls are commonly used to release resources such as files and network connections.
+
+\begin{lstlisting}
+func readFile(path string) error {
+    file, err := os.Open(path)
+    if err != nil {
+        return err
+    }
+    defer file.Close()
+
+    data, err := io.ReadAll(file)
+    if err != nil {
+        return err
+    }
+
+    fmt.Println(string(data))
+    return nil
+}
+\end{lstlisting}
+
+The call to \texttt{file.Close} is deferred immediately after the file is opened successfully. This ensures that the file is closed when the function returns, including when reading fails.
+
+However, the example does not inspect the error returned by \texttt{Close}. In applications where closing a resource can report an important failure, that error may need to be handled explicitly.
+
+Deferred functions are also executed when a panic unwinds the stack, making them useful for cleanup operations that must run regardless of how a function exits.
+
+\subsection{Error Handling in File Operations}
+
+File operations illustrate how errors are commonly propagated through several levels of a programme.
+
+\begin{lstlisting}
+func countLines(path string) (int, error) {
+    data, err := os.ReadFile(path)
+    if err != nil {
+        return 0, fmt.Errorf(
+            "counting lines in %q: %w",
+            path,
+            err,
+        )
+    }
+
+    return bytes.Count(data, []byte("\n")), nil
+}
+\end{lstlisting}
+
+The function reads the contents of a file and counts newline bytes. If reading fails, it returns an error containing contextual information and the underlying cause.
+
+A caller can then decide how to respond:
+
+\begin{lstlisting}
+count, err := countLines("input.txt")
+if err != nil {
+    log.Println(err)
+    return
+}
+
+fmt.Println("Lines:", count)
+\end{lstlisting}
+
+This separation of responsibilities allows the file-processing function to report what went wrong while leaving the application-level code responsible for deciding whether to log the error, notify a user, retry the operation, or terminate the current task.
+
+The example counts newline characters rather than logical text lines in every possible file format. A file without a trailing newline, for instance, may contain a final line that is not included in the count. The precise definition of a line should therefore be established by the application.
+
+\subsection{Error Handling in Concurrent Programs}
+
+Go supports concurrency through goroutines and channels. Errors arising within concurrent operations must be communicated to the appropriate coordinating component.
+
+A goroutine cannot return a value directly to the function that started it. Instead, errors can be communicated through channels, returned through a result structure, or managed using higher-level concurrency abstractions.
+
+For example:
+
+\begin{lstlisting}
+type Result struct {
+    Value int
+    Err   error
+}
+
+func calculateAsync(input int, results chan<- Result) {
+    if input < 0 {
+        results <- Result{
+            Err: errors.New("negative input"),
+        }
+        return
+    }
+
+    results <- Result{
+        Value: input * input,
+    }
+}
+\end{lstlisting}
+
+The result structure contains both the computation result and any associated error. A coordinating goroutine can receive the value and determine whether the operation succeeded.
+
+\begin{lstlisting}
+results := make(chan Result)
+
+go calculateAsync(5, results)
+
+result := <-results
+if result.Err != nil {
+    fmt.Println("Calculation failed:", result.Err)
+} else {
+    fmt.Println("Result:", result.Value)
+}
+\end{lstlisting}
+
+This pattern makes error communication explicit. In more complex applications, packages such as \texttt{context} and \texttt{golang.org/x/sync/errgroup} can help coordinate cancellation and error propagation across concurrent operations.
+
+Careful concurrency design is necessary to avoid deadlocks, goroutine leaks, and lost errors. The component responsible for coordinating concurrent tasks should define how errors are collected, whether other tasks should be cancelled, and how resources are released.
+
+\subsection{Logging and Reporting Errors}
+
+Error handling involves more than detecting a failure. Applications must also communicate relevant information to operators, users, or other systems.
+
+The standard-library \texttt{log} package provides basic logging facilities. For example:
+
+\begin{lstlisting}
+data, err := os.ReadFile("config.json")
+if err != nil {
+    log.Printf("Unable to read configuration: %v", err)
+    return
+}
+
+fmt.Println(string(data))
+\end{lstlisting}
+
+The error is recorded with contextual information before the function returns.
+
+Logging should be designed to avoid unnecessary duplication. If a lower-level function logs an error and returns it, a higher-level function may log the same failure again, resulting in redundant messages. A common design is to return errors from lower-level components and log them at the application boundary where the appropriate response is determined.
+
+Error messages should provide sufficient context to diagnose the problem without disclosing passwords, access tokens, personal information, or other sensitive data.
+
+For larger systems, structured logging can provide additional fields, such as operation names, request identifiers, and resource paths, making errors easier to investigate.
+
+\subsection{Best Practices for Error Handling}
+
+Effective error handling improves reliability, maintainability, and the ability to diagnose failures. The following practices are generally recommended:
+
+\begin{itemize}
+    \item Check errors returned by functions whenever they affect the correctness or safety of subsequent operations.
+    \item Return errors explicitly for expected operational failures instead of using panics.
+    \item Include useful context when propagating errors through multiple layers.
+    \item Use \texttt{errors.Is} and \texttt{errors.As} for inspecting wrapped errors rather than relying on string comparisons.
+    \item Define sentinel errors or custom error types when callers require stable, programmatic identification of failure conditions.
+    \item Avoid discarding errors without a deliberate reason.
+    \item Use deferred functions to release resources, and inspect cleanup errors when they are significant.
+    \item Reserve panic recovery for deliberate boundaries where a failure must be contained.
+    \item In concurrent programs, establish explicit mechanisms for collecting errors and coordinating cancellation.
+    \item Log errors at appropriate application boundaries and avoid reporting the same failure repeatedly.
+    \item Write tests that verify both successful execution and relevant failure conditions.
+\end{itemize}
+
+These practices help ensure that errors are handled consistently and that failures can be diagnosed without making normal program flow unnecessarily complicated.
+
+\subsection{Conclusion}
+
+The handling of errors in Go is based primarily on explicit error values returned by the functions. The built-in \texttt{error} interface provides a common abstraction for representing failures, while standard-library facilities such as \texttt{errors.New}, \texttt{fmt.Errorf}, \texttt{errors.Is}, \texttt{errors.As}, and \texttt{errors.Join} support error creation, contextual wrapping, inspection, and aggregation.
+
+Custom error types allow applications to expose structured failure information, while sentinel errors provide stable identifiers for recognisable conditions. Panics and recovery serve a different purpose and should generally be reserved for abnormal conditions or carefully defined recovery boundaries.
+
+Reliable Go software depends on distinguishing expected failures from programming defects, propagating errors with sufficient context, releasing resources correctly, and responding to failures at the appropriate architectural level. By following these principles, developers can build applications that are easier to test, maintain, operate, and extend.
+

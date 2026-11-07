@@ -1,0 +1,347 @@
+\documentclass[12pt,oneside]{book}
+
+% ---------- Packages ----------
+\usepackage[a4paper,margin=1in]{geometry}
+\usepackage{setspace}
+\usepackage{amsmath}
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{tcolorbox}
+\usepackage{listings}
+\usepackage{inconsolata}
+\usepackage{eso-pic}   % for background image
+\usepackage{graphicx}
+\usepackage{array}
+
+\setcounter{secnumdepth}{1}
+\setcounter{tocdepth}{1}
+% ---------- Colors ----------
+\definecolor{goblue}{RGB}{0,102,153}
+\definecolor{lightgray}{RGB}{245,245,245}
+\definecolor{codegray}{RGB}{240,240,240}
+\definecolor{commentgreen}{RGB}{0,128,0}
+
+% ---------- Hyperref ----------
+\hypersetup{
+    colorlinks=true,
+    linkcolor=goblue,
+    urlcolor=goblue
+}
+
+% ---------- Header/Footer ----------
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[R]{\thepage}
+\fancyhead[L]{\nouppercase{\leftmark}}
+
+% ---------- Chapter Style ----------
+\titleformat{\chapter}[display]
+  {\normalfont\bfseries\Huge\color{goblue}}
+  {\filleft\Huge\chaptername\ \thechapter}
+  {2ex}
+  {\titlerule\vspace{2ex}\filright}
+  [\vspace{2ex}\titlerule]
+
+% ---------- Boxes ----------
+\newtcolorbox{chaptersummary}{
+    colback=lightgray,
+    colframe=goblue,
+    title=Chapter Summary,
+    fonttitle=\bfseries
+}
+
+\newtcolorbox{examplebox}{
+    colback=white,
+    colframe=goblue,
+    title=Example,
+    fonttitle=\bfseries
+}
+
+% ---------- Go Listings ----------
+\lstdefinelanguage{Go}{
+    keywords={break, default, func, interface, select, case, defer, go, map, struct,
+    chan, else, goto, package, switch, const, fallthrough, if, range, type, continue,
+    for, import, return, var},
+    sensitive=true,
+    morecomment=[l]{//},
+    morecomment=[s]{/*}{*/},
+    morestring=[b]",
+}
+
+\lstset{
+    language=Go,
+    backgroundcolor=\color{codegray},
+    basicstyle=\ttfamily\small,
+    keywordstyle=\color{blue}\bfseries,
+    commentstyle=\color{commentgreen},
+    stringstyle=\color{red},
+    numbers=left,
+    numberstyle=\tiny,
+    breaklines=true,
+    frame=single
+}
+
+% ---------- Title ----------
+\title{\Huge \textbf{Understanding Go from the Ground Up}}
+\author{Dr. Colin Wilcox}
+
+\begin{document}
+
+\frontmatter
+
+% ---------- Cover Page ----------
+\begin{titlepage}
+    \thispagestyle{empty}
+
+    % Background image (replace filename)
+    \AddToShipoutPictureBG*{
+        \includegraphics[width=\paperwidth,height=\paperheight]{images/cover.png}
+    }
+
+    \vspace*{0.65\paperheight}
+
+%    \begin{center}
+%        {\Huge \bfseries \color{white} Understanding Go from the Ground Up \par}
+%        \vspace{1cm}
+%        {\Large \color{white} Dr. Colin Wilcox \par}
+%    \end{center}
+
+\end{titlepage}
+
+\ClearShipoutPictureBG
+\maketitle
+\tableofcontents
+
+\mainmatter
+
+% =========================================================
+\part{Foundations: Starting from Zero}
+
+\chapter{What Is Programming?}
+\begin{chaptersummary}
+Computers process, store and communicate information by following instructions provided by software. The CPU performs operations on binary data, while memory, storage and the operating system manage the data and resources needed to run applications. Complex tasks are achieved by combining many simple operations into sophisticated hardware and software systems.
+\end{chaptersummary}
+
+\include{whatcomputersdo.tex}
+\include{programminglanguageoverview.tex}
+\include{whydevelopingo.tex}
+
+\chapter{Setting Up Your Environment}
+\begin{chaptersummary}
+This chapter introduces the steps required to set up a Go (Golang) development environment, providing a solid foundation for writing, running, and managing Go applications. It covers installing the Go compiler and toolchain, configuring environment variables, setting up a suitable code editor or IDE, and understanding the basic project structure. Through practical examples, readers will learn how to verify their installation, create their first Go program, and execute it from the command line. By the end of this chapter, readers will have a fully functional Go development environment and be ready to begin building their own Go applications.
+\end{chaptersummary}
+
+\include{installinggo.tex}
+\include{gotoolchain.tex}
+\include{editorsandides.tex}
+
+\chapter{Your First Go Program}
+\begin{chaptersummary}
+This chapter introduces readers to writing and running their first Go program, building on the development environment established in the previous chapter. It explores the basic structure of a Go application, including the package main declaration, importing packages, and defining the main() function as the program’s entry point. Through a simple “Hello, World!” example, readers will learn how to write Go code, save it in a source file, compile and execute the program, and understand the output. The chapter also introduces fundamental Go syntax and explains how each component contributes to the program’s execution. By the end of this chapter, readers will have gained the confidence to create, run, and begin experimenting with their own Go programs.
+\end{chaptersummary}
+
+\include{firstgoprogram.tex}
+
+
+% =========================================================
+\part{Core Language Basics}
+
+\chapter{Variables and Data Types}
+\begin{chaptersummary}
+This chapter introduces variables and data types in Go, providing readers with the fundamental knowledge needed to store, manage, and manipulate data in their programs. It explains how to declare and initialise variables using explicit type declarations and Go’s short variable declaration syntax, as well as how to use constants to represent values that remain unchanged. Readers will explore Go’s built-in data types, including integers, floating-point numbers, strings, booleans, and complex numbers, while learning how type inference and zero values work. The chapter also covers type conversion, the differences between related data types, and common mistakes to avoid when working with variables. Through practical examples, readers will develop a clear understanding of how Go handles data and gain the skills needed to write more reliable, readable, and effective Go programs.
+\end{chaptersummary}
+\include{variablesanddatatypes.tex}
+
+\chapter{Operators and Expressions}
+\begin{chaptersummary}
+This chapter explores operators and expressions in Go, explaining how to perform calculations, compare values, and make logical decisions within a program. Readers will learn about the different categories of operators, including arithmetic operators for mathematical calculations, comparison operators for evaluating relationships between values, logical operators for combining conditions, and assignment operators for updating variables. The chapter also introduces bitwise operators and increment and decrement operations, highlighting their practical applications and behaviour in Go. Through clear explanations and practical examples, readers will learn how to construct and evaluate expressions, understand operator precedence and associativity, and avoid common mistakes when combining operators. By the end of this chapter, readers will be able to use Go’s operators effectively to manipulate data, evaluate conditions, and build more expressive and reliable programs.
+\end{chaptersummary}
+\include{operatorsandexpressions.tex}
+
+\chapter{Control Flow}
+\begin{chaptersummary}
+This chapter explores control flow in Go, explaining how to control the order in which statements are executed to create dynamic and responsive programs. Readers will learn how to use conditional statements, including if, else if, and else, to make decisions based on specific conditions, as well as how to use switch statements to handle multiple possible outcomes efficiently. The chapter also covers Go’s looping constructs, including for loops, which can be used to repeat operations, iterate over collections, and implement condition-based repetition. In addition, readers will discover how to use break, continue, and return to alter program execution and control the flow of functions. Through practical examples, the chapter demonstrates how these constructs work together to implement decision-making, repetition, and branching logic. By the end of this chapter, readers will be able to write more structured, flexible, and efficient Go programs that respond intelligently to different conditions and inputs.
+\end{chaptersummary}
+\include{controlflow.tex}
+
+\chapter{Functions}
+\begin{chaptersummary}
+This chapter introduces functions in Go, explaining how to organise code into reusable, modular, and maintainable units. Readers will learn how to declare and call functions, define parameters, return single or multiple values, and use named return values to simplify function implementations. The chapter also explores variadic functions, anonymous functions, closures, and recursion, demonstrating how these features can be applied to solve a variety of programming problems. In addition, readers will examine how arguments are passed to functions, how variable scope affects accessibility, and how functions can be used to break complex tasks into smaller, manageable components. Through practical examples, the chapter highlights the importance of function design, code reuse, and clear interfaces. By the end of this chapter, readers will have the skills to write well-structured Go programs that are easier to understand, test, and maintain.
+\end{chaptersummary}
+\include{functions.tex}
+
+% =========================================================
+\part{Working with Data}
+
+\chapter{Arrays and Slices}
+\begin{chaptersummary}
+This chapter explores arrays and slices in Go, explaining how to store, access, and manipulate collections of values efficiently. Readers will learn how to declare, initialise, and access array elements, understand the fixed-length nature of arrays, and use indexing to retrieve or modify individual values. The chapter then introduces slices, Go’s flexible and widely used mechanism for working with sequences of data, covering slice creation, slicing operations, the append function, and the built-in len and cap functions. It also examines the relationship between slices and their underlying arrays, explaining how length, capacity, and shared underlying storage affect slice behaviour. Through practical examples, readers will learn how to iterate over collections, copy slices, and avoid common pitfalls when modifying or sharing slice data. By the end of this chapter, readers will understand when to use arrays or slices and be able to manage collections of data effectively in their Go programs.
+\end{chaptersummary}
+\include{arraysandslices.tex}
+
+\chapter{Maps}
+\begin{chaptersummary}
+This chapter introduces maps in Go, explaining how to store, organise, and retrieve data using key-value pairs. Readers will learn how to declare, initialise, and populate maps, access values using keys, and modify or delete entries as needed. The chapter explores how to check whether a key exists, distinguish between a missing key and a key associated with a zero value, and iterate over map entries using the for range construct. It also covers common map operations, the behaviour of nil maps, and important considerations when working with map references and iteration order. Through practical examples, readers will discover how maps can be used to represent structured data, perform efficient lookups, count occurrences, and associate related values. By the end of this chapter, readers will understand the key characteristics of Go maps and be able to use them effectively to build clear, efficient, and maintainable applications.
+\end{chaptersummary}
+\include{maps.tex}
+
+\chapter{Strings, Runes and Character Sets}
+\begin{chaptersummary}
+This chapter explores strings, runes, and character sets in Go, explaining how text is represented, stored, and manipulated in Go programs. Readers will learn that Go strings are immutable sequences of bytes, typically used to represent UTF-8 encoded text, and understand the difference between byte length and the number of Unicode characters in a string. The chapter introduces runes, which represent Unicode code points, and demonstrates how to iterate over strings, access individual characters, and handle text containing characters from different languages and writing systems. It also covers string operations, concatenation, comparison, common functions from the strings and unicode packages, and the importance of understanding Unicode encoding when processing text. Through practical examples, readers will discover how to work safely with ASCII and non-ASCII text, recognise the limitations of treating individual bytes as characters, and perform common text-processing tasks. By the end of this chapter, readers will have a solid understanding of Go’s string model and the tools needed to process text accurately and efficiently.
+\end{chaptersummary}
+\include{stringsrunesandcharactersets.tex}
+
+% =========================================================
+\part{Structuring Programs}
+
+\chapter{Structs}
+\begin{chaptersummary}
+This chapter introduces structs in Go, explaining how to define custom data types that group related values into a single, meaningful structure. Readers will learn how to declare structs, define fields with different data types, create and initialise struct values, and access or modify individual fields using dot notation. The chapter also explores struct literals, zero-valued fields, nested structs, anonymous structs, and the use of pointers to structs when working with data. In addition, readers will examine how structs can be passed to functions, returned from functions, and compared when their fields support comparison. Through practical examples, the chapter demonstrates how structs can model real-world entities, such as users, products, and configuration settings, helping organise related information into clear and maintainable data structures. By the end of this chapter, readers will understand how to design and use structs effectively, providing a foundation for building more complex Go applications.
+\end{chaptersummary}
+\include{structs.tex}
+
+\chapter{Methods and Interfaces}
+\begin{chaptersummary}
+This chapter explores methods and interfaces in Go, explaining how to associate behaviour with custom types and design flexible, reusable components. Readers will learn how to define methods with value and pointer receivers, understand the differences between them, and determine when each approach is appropriate. The chapter then introduces interfaces as a way to describe behaviour through sets of method signatures, demonstrating how Go types satisfy interfaces implicitly without requiring explicit declarations. It also covers interface composition, the use of interfaces as function parameters and return values, and the role of the empty interface and the any type when working with values of different types. Through practical examples, readers will discover how methods can extend the functionality of structs and how interfaces enable polymorphism, abstraction, and loose coupling between components. By the end of this chapter, readers will understand how to use methods and interfaces to create modular, extensible, and maintainable Go applications.
+\end{chaptersummary}
+\include{methodsandinterfaces.tex}
+
+\chapter{Packages and Modules}
+\begin{chaptersummary}
+This chapter explores packages and modules in Go, explaining how to organise code into reusable, maintainable, and logically structured components. Readers will learn how to declare packages, import functionality from the standard library and third-party libraries, and understand the rules governing exported and unexported identifiers. The chapter introduces Go modules as the foundation for dependency management, covering how to initialise a module using go mod init, manage dependencies with commands such as go get and go mod tidy, and understand the roles of the go.mod and go.sum files. It also examines package organisation, import paths, module versioning, and best practices for structuring projects as they grow in complexity. Through practical examples, readers will discover how to create their own packages, reuse code across multiple files and directories, and incorporate external libraries into their applications. By the end of this chapter, readers will understand how Go’s package and module systems work together to support modular development, dependency management, and the creation of scalable, maintainable Go projects.
+\end{chaptersummary}
+\include{packagesandmodules.tex}
+
+% =========================================================
+\part{Error Handling and Testing}
+
+\chapter{Error Handling}
+\begin{chaptersummary}
+This chapter explores error handling in Go, explaining how to detect, communicate, and recover from errors to build reliable and robust applications. Readers will learn about Go’s explicit error-handling approach, including how functions return errors as values and how to check and handle them using conditional statements. The chapter introduces the error interface, creating custom errors with functions such as errors.New and fmt.Errorf, and wrapping errors to preserve context and support inspection. It also covers error propagation, error checking with errors.Is and errors.As, and the appropriate use of panic and recover for exceptional situations. Through practical examples, readers will learn how to provide meaningful error messages, avoid silently ignored errors, and design functions that communicate failures clearly. By the end of this chapter, readers will understand Go’s error-handling philosophy and be equipped to write programs that handle unexpected situations gracefully, remain easier to debug, and behave more predictably in real-world environments.
+\end{chaptersummary}
+\include{errorhandling.tex}
+
+\chapter{Testing in Go}
+\begin{chaptersummary}
+This chapter explores testing in Go, explaining how to verify program behaviour, identify defects, and maintain confidence in code as applications evolve. Readers will learn how to write unit tests using Go’s built-in testing package, organise test files, and run tests with the go test command. The chapter covers testing functions with different inputs and expected outputs, using table-driven tests to reduce duplication, and applying subtests to organise related test cases. It also introduces test coverage, benchmarks, and example tests, demonstrating how these techniques can help assess code quality, measure performance, and document expected behaviour. Through practical examples, readers will learn how to test normal execution paths, handle edge cases, and verify error conditions. By the end of this chapter, readers will understand Go’s testing conventions and be able to develop a systematic testing approach that improves code reliability, simplifies maintenance, and supports the development of robust Go applications.
+\end{chaptersummary}
+\include{testing.tex}
+
+% =========================================================
+\part{Concurrency, Go's Superpower}
+
+\chapter{Concurrency}
+\begin{chaptersummary}
+This chapter explores concurrency in Go, introducing the concepts and techniques used to execute multiple tasks efficiently and build responsive, scalable applications. Readers will learn how to create goroutines using the go keyword, understand how goroutines differ from traditional threads, and use channels to communicate and share data between concurrent tasks. The chapter examines unbuffered and buffered channels, channel direction, and the use of select to coordinate communication across multiple channels. It also covers synchronisation techniques using the sync package, including WaitGroup, Mutex, and Once, as well as common concurrency challenges such as race conditions, deadlocks, and improper resource sharing. Through practical examples, readers will discover how to coordinate concurrent operations, manage task completion, and use Go’s concurrency tools safely and effectively. By the end of this chapter, readers will understand Go’s concurrency model and be able to design programs that take advantage of concurrent execution while maintaining correctness, reliability, and performance.
+\end{chaptersummary}
+\include{concurrency.tex}
+
+\chapter{Goroutines}
+\begin{chaptersummary}
+This chapter explores goroutines in Go, explaining how to execute functions concurrently to build responsive, efficient, and scalable applications. Readers will learn how to launch goroutines using the go keyword, understand how goroutines differ from operating system threads, and discover how Go’s runtime schedules concurrent tasks. The chapter examines how to start and manage multiple goroutines, coordinate their execution, and wait for tasks to complete using tools such as sync.WaitGroup. It also introduces common challenges associated with concurrent programming, including race conditions, shared data access, and goroutine leaks, highlighting techniques for avoiding these problems. Through practical examples, readers will learn how goroutines can improve application responsiveness and enable independent tasks to execute concurrently, while understanding that concurrency does not always guarantee faster execution. By the end of this chapter, readers will be able to create, coordinate, and manage goroutines effectively, establishing a strong foundation for working with channels and more advanced concurrency patterns in Go.
+\end{chaptersummary}
+\include{goroutines.tex}
+
+
+\chapter{Channels}
+\begin{chaptersummary}
+This chapter explores channels in Go, explaining how they enable goroutines to communicate and coordinate their activities safely. Readers will learn how to create channels, send and receive values, and understand how channel operations synchronise concurrent tasks. The chapter examines the differences between unbuffered and buffered channels, demonstrates how to close channels and detect when they are closed, and introduces directional channels that restrict communication to sending or receiving. It also covers the use of select to handle communication across multiple channels, coordinate concurrent operations, and implement timeouts. Through practical examples, readers will discover how channels can be used to distribute work, collect results, and coordinate the execution of multiple goroutines. The chapter also highlights common pitfalls, including deadlocks, blocked operations, and incorrect channel closure. By the end of this chapter, readers will understand how to use channels effectively to build concurrent Go programs that communicate clearly, coordinate reliably, and avoid common synchronisation problems.
+\end{chaptersummary}
+\include{channels.tex}
+
+% =========================================================
+\part{Practical Development}
+
+\chapter{File I/O}
+\begin{chaptersummary}
+This chapter explores file input and output (I/O) in Go, explaining how to read, create, write, modify, and manage files within an application. Readers will learn how to work with the os and io packages to perform common file operations, including opening and closing files, reading file contents, writing data, and handling file-related errors. The chapter introduces different approaches to file processing, such as reading entire files into memory, processing data incrementally with readers and writers, and working with buffered I/O using the bufio package. It also covers file paths, directory operations, file permissions, and the importance of properly managing file resources using defer. Through practical examples, readers will discover how to process text files, handle large files efficiently, and ensure reliable error handling when accessing the file system. By the end of this chapter, readers will understand Go’s file I/O capabilities and be able to implement effective file-handling operations in their own applications.
+\end{chaptersummary}
+\include{fileio.tex}
+
+\chapter{Working with JSON and APIs}
+\begin{chaptersummary}
+This chapter explores working with JSON and APIs in Go, explaining how to exchange data between applications and interact with external services over HTTP. Readers will learn how to encode Go data structures into JSON using the encoding/json package and decode JSON data into Go structs, maps, and other types. The chapter covers struct tags, handling nested JSON objects and arrays, managing missing or optional fields, and working with JSON encoding and decoding errors. It then introduces HTTP communication using Go’s net/http package, demonstrating how to send GET and POST requests, set request headers, submit JSON payloads, and process HTTP responses and status codes. Through practical examples, readers will learn how to consume third-party REST APIs, handle network errors and timeouts, and build simple HTTP endpoints that return JSON responses. By the end of this chapter, readers will understand how to integrate Go applications with web services and exchange structured data reliably, providing a foundation for developing modern, API-driven applications.
+\end{chaptersummary}
+\include{jsonhttp.tex}
+
+\chapter{Building a CLI Application}
+\begin{chaptersummary}
+This chapter explores building command-line interface (CLI) applications in Go, explaining how to create practical tools that users can interact with directly from a terminal. Readers will learn how to process command-line arguments, define and parse flags using the flag package, accept user input, and display informative output and error messages. The chapter also covers organising application logic into reusable functions and packages, reading configuration from files and environment variables, and handling errors and exit codes appropriately. Through practical examples, readers will discover how to build interactive commands, validate user input, work with files and directories, and execute system-level operations where appropriate. The chapter also introduces techniques for improving usability, including providing helpful usage instructions, supporting optional arguments, and designing consistent command behaviour. By the end of this chapter, readers will have the skills to develop reliable, maintainable, and user-friendly CLI applications in Go, from simple utilities to more sophisticated developer tools.
+\end{chaptersummary}
+\include{commandlineapp.tex}
+
+% =========================================================
+\part{Advanced Topics}
+
+\chapter{Memory Management}
+\begin{chaptersummary}
+This chapter explores memory management in Go, explaining how the language allocates, tracks, and reclaims memory to support efficient and reliable application development. Readers will learn about stack and heap allocation, how variables and objects are stored in memory, and how escape analysis helps the Go compiler determine where values should be allocated. The chapter introduces Go’s garbage collector, examining how it identifies and reclaims memory that is no longer reachable, as well as the factors that influence garbage collection performance. It also covers pointers, references, memory allocation patterns, and common sources of unnecessary memory usage, including memory leaks caused by retaining unwanted references. Through practical examples, readers will discover how to use tools such as pprof and runtime metrics to investigate memory consumption, identify allocation bottlenecks, and optimise their applications. By the end of this chapter, readers will understand Go’s automatic memory management model and be equipped to write memory-efficient programs while balancing performance, simplicity, and maintainability.
+\end{chaptersummary}
+\include{memorymanagement.tex}
+
+\chapter{Generics}
+\begin{chaptersummary}
+This chapter explores generics in Go, explaining how to write reusable, type-safe code that works with different data types without duplicating implementations. Readers will learn how to define generic functions and types using type parameters, specify type constraints, and use interfaces to describe the operations supported by those parameters. The chapter introduces the comparable constraint, built-in constraints such as any, and the use of unions and underlying types to control which types can be used with generic code. It also examines how to create generic data structures, such as stacks and queues, and implement common algorithms that operate across multiple types. Through practical examples, readers will discover how generics can improve code reuse, readability, and maintainability while preserving compile-time type safety. The chapter also discusses when generics are appropriate and how they compare with interfaces and other approaches to abstraction in Go. By the end of this chapter, readers will be able to design and implement flexible, type-safe generic functions and data structures that can be reused across a wide range of Go applications.
+\end{chaptersummary}
+\include{generics.tex}
+
+\chapter{Performance Optimization}
+\begin{chaptersummary}
+This chapter explores performance optimisation techniques in Go, explaining how to identify bottlenecks, reduce resource consumption, and improve the efficiency of applications. Readers will learn how to benchmark code using Go’s built-in testing tools, profile CPU and memory usage with pprof, and interpret profiling results to identify areas that require improvement. The chapter examines practical optimisation techniques, including reducing unnecessary memory allocations, reusing objects where appropriate, choosing efficient data structures and algorithms, and minimising avoidable string operations and copying. It also covers compiler optimisations, escape analysis, garbage collection considerations, and the use of concurrency to improve throughput when tasks can be executed independently. Through practical examples, readers will discover how to measure performance before and after making changes, avoid premature optimisation, and understand the trade-offs between speed, memory usage, and code readability. By the end of this chapter, readers will be equipped to analyse, benchmark, and optimise Go applications systematically, making informed decisions that deliver measurable performance improvements without compromising correctness or maintainability.
+\end{chaptersummary}
+\include{performanceoptimization.tex}
+
+% =========================================================
+\part{Building Real Systems}
+
+\chapter{Web Development}
+\begin{chaptersummary}
+This chapter explores web development in Go, explaining how to build dynamic, reliable, and scalable web applications using Go’s standard library and supporting frameworks. Readers will learn how to create HTTP servers, define routes, handle incoming requests, and generate responses using the net/http package. The chapter covers handling different HTTP methods, processing form submissions, working with query parameters, serving static files, and rendering dynamic HTML templates using the html/template package. It also introduces middleware, routing techniques, and request validation, demonstrating how to structure web applications into reusable and maintainable components. Through practical examples, readers will discover how to build RESTful endpoints, return JSON responses, manage errors, and implement essential web security practices. The chapter also examines how to integrate databases and external services into web applications, providing a foundation for developing data-driven solutions. By the end of this chapter, readers will understand the core principles of web development in Go and be equipped to build, test, and maintain functional web applications that are secure, efficient, and ready for further development.
+\end{chaptersummary}
+\include{webdevelopment.tex}
+
+\chapter{Databases}
+\begin{chaptersummary}
+This chapter explores database development in Go, explaining how to connect applications to databases, manage persistent data, and perform efficient data operations. Readers will learn how to use Go’s database/sql package to establish database connections, execute SQL queries, insert and update records, and retrieve results from relational databases such as PostgreSQL, MySQL, and SQLite through their respective database drivers. The chapter covers prepared statements, parameterised queries, transactions, connection pooling, and proper resource management, highlighting techniques for improving performance and preventing common security vulnerabilities such as SQL injection. It also introduces error handling, database schema design, and the use of context to manage query execution and timeouts. Through practical examples, readers will discover how to implement common data access patterns, organise database logic into reusable components, and integrate database operations into larger Go applications. By the end of this chapter, readers will understand how to build reliable, secure, and maintainable database-driven applications using Go.
+\end{chaptersummary}
+\include{databases.tex}
+
+\chapter{Microservices and Deployment}
+\begin{chaptersummary}
+This chapter explores microservices architecture and deployment in Go, explaining how to design, build, and deploy independent services that work together to form scalable and maintainable distributed applications. Readers will learn how to structure Go applications as separate services, define communication between them using REST APIs and gRPC, and manage service dependencies, configuration, and error handling. The chapter introduces essential distributed systems concepts, including service discovery, health checks, timeouts, retries, and logging, highlighting techniques for building resilient services. It also covers containerising Go applications with Docker, managing environment-specific configuration, and deploying services to cloud platforms or container orchestration systems such as Kubernetes. Through practical examples, readers will discover how to build production-ready Go services, implement monitoring and observability, and establish automated build, test, and deployment pipelines using continuous integration and continuous delivery (CI/CD) practices. By the end of this chapter, readers will understand the key principles of microservices development and gain the skills needed to package, deploy, monitor, and maintain Go applications in modern production environments.
+\end{chaptersummary}
+\include{microservices.tex}
+
+% =========================================================
+\part{Mastery and Beyond}
+
+\chapter{Best Practices and Idioms}
+\begin{chaptersummary}
+Write idiomatic Go code.
+\end{chaptersummary}
+\include{bestpractices.tex}
+
+\chapter{Common Pitfalls}
+\begin{chaptersummary}
+Avoid frequent mistakes.
+\end{chaptersummary}
+\include{commonpitfalls.tex}
+
+\chapter{The Go Ecosystem}
+\begin{chaptersummary}
+Explore tools and libraries.
+\end{chaptersummary}
+\include{goecosystem.tex}
+
+\chapter{Future of Go}
+\begin{chaptersummary}
+Understand where Go is heading. The section below treats Go's future evolution as a combination of documented language changes, improvements already delivered in recent releases, and cautiously identified longer-term directions. It uses the official release history as the basis for the version comparison, with particular attention to Go 1.26 and Go 1.27, which are relevant to the current date of October 2026.
+\end{chaptersummary}
+\include{futureofgo.tex}
+
+% =========================================================
+\appendix
+
+\end{document}

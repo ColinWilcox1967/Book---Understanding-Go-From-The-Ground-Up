@@ -1,0 +1,263 @@
+\section{Setting Up a Clean Go Development Environment}
+
+A clean Go development environment should provide the Go compiler and toolchain, a suitable code editor, dependency management, testing facilities, and version-control support. The environment should also be configured so that projects remain isolated from the operating system and can be reproduced on other development machines. The following procedure describes a suitable setup for both Windows and Linux.
+
+\subsection{Installing Go}
+
+The first step is to install the official Go distribution. Go should be installed from the official Go distribution rather than from an unverified third-party source. The installation provides the Go compiler, standard library, command-line tools, and supporting utilities required to build and test Go programs.
+
+\subsubsection{Windows}
+
+On Windows, the Go installer can be downloaded from the official Go website. The installer places the Go distribution in the standard installation directory and configures the required environment variables. Once installation is complete, a new PowerShell or Command Prompt session should be opened so that the updated environment is available.\\
+
+The installation can be verified using:
+
+\begin{lstlisting}
+go version
+\end{lstlisting}
+
+A successful installation should return the installed Go version and the target platform. Additional information about the Go environment can be obtained using:
+
+\begin{lstlisting}
+go env
+\end{lstlisting}
+
+The \texttt{go env} output can be useful for diagnosing problems related to the Go installation, the module cache, the compiler, or the executable search path.
+
+\subsubsection{Linux}
+
+On Linux, Go can be installed using the distribution's package manager or by downloading the official Go archive. For development environments where a specific Go version is required, installing the official distribution is often preferable because it provides direct control over the installed version.\\
+
+After installation, the Go executable should be available through the system's \texttt{PATH}. This can be checked with:
+
+\begin{lstlisting}
+go version
+\end{lstlisting}
+
+The installation can also be inspected using:
+
+\begin{lstlisting}
+go env
+\end{lstlisting}
+
+If Go was installed manually, the relevant Go binary directory should be added to the user's \texttt{PATH}. For example, a typical shell configuration might contain:
+
+\begin{lstlisting}
+export PATH=$PATH:/usr/local/go/bin
+\end{lstlisting}
+
+The exact configuration depends on the installation method and Linux distribution.
+
+\subsection{Choosing a Project Location}
+
+Go projects should be stored in a dedicated development directory rather than directly inside the Go installation directory. For example, a developer might create a directory called \texttt{Projects} in their home directory.\\
+
+On Linux, this could be:
+
+\begin{lstlisting}
+mkdir -p ~/Projects
+cd ~/Projects
+\end{lstlisting}
+
+On Windows PowerShell, an equivalent directory can be created using:
+
+\begin{lstlisting}
+New-Item -ItemType Directory -Path "$HOME\Projects"
+Set-Location "$HOME\Projects"
+\end{lstlisting}
+
+Keeping source code separate from the Go installation makes the environment easier to maintain and prevents project files from becoming mixed with compiler or standard-library files.
+
+\subsection{Using Go Modules}
+
+Modern Go development should use Go modules for dependency management and version management. A module defines the identity of a project and records the dependencies required to build it. This approach avoids the need to place the source code of the application in a specific global workspace.\\
+
+A new project can be created by making a directory and initialising a module:
+
+\begin{lstlisting}
+mkdir example
+cd example
+go mod init example
+\end{lstlisting}
+
+For a real project, the module path would normally correspond to the project's repository location. For example:
+
+\begin{lstlisting}
+go mod init github.com/example/example
+\end{lstlisting}
+
+The command creates a \texttt{go.mod} file. This file should be put into version control because it defines the module and records important dependency information.
+
+When dependencies are added, Go can update the module files automatically. The command:
+
+\begin{lstlisting}
+go mod tidy
+\end{lstlisting}
+
+can be used to remove unnecessary dependencies and add dependencies required by the source code.
+
+\subsection{Creating a Minimal Go Program}
+
+A clean environment should be tested with a small application before development begins. A file named \texttt{main.go} can be created that contains:
+
+\begin{lstlisting}
+package main
+
+import "fmt"
+
+func main() {
+    fmt.Println("Hello, Go!")
+}
+\end{lstlisting}
+
+The program can be executed without first creating a separate executable using:
+
+\begin{lstlisting}
+go run .
+\end{lstlisting}
+
+If the environment is configured correctly, the program will compile and display:
+
+\begin{lstlisting}
+Hello, Go!
+\end{lstlisting}
+
+The application can also be compiled using:
+
+\begin{lstlisting}
+go build
+\end{lstlisting}
+
+This produces an executable suitable for the current operating system and architecture.
+
+\subsection{Selecting an Integrated Development Environment}
+
+Although Go can be developed entirely from the command line, an integrated development environment (IDE) or capable code editor can improve productivity. Visual Studio Code is a common choice because it provides editing, syntax highlighting, code navigation, debugging, testing, and integration with the Go toolchain.\\
+
+After installing Visual Studio Code, the official Go extension can be installed. The extension provides features such as automatic formatting, code completion, diagnostics, testing support, debugging, and navigation between declarations.\\
+
+The Go formatter should be used consistently. Go provides the \texttt{gofmt} utility, which formats the Go source code according to the standard Go formatting conventions. A source file can be formatted using the following:
+
+\begin{lstlisting}
+gofmt -w main.go
+\end{lstlisting}
+
+Using a common formatting standard reduces unnecessary differences between source files and makes collaborative development easier.
+
+\subsection{Installing Development Tools}
+
+The Go toolchain includes several commands that support the software development lifecycle. Some of the most important commands are shown below.
+
+\begin{lstlisting}
+go run .
+go build
+go test ./...
+go fmt ./...
+go vet ./...
+go mod tidy
+\end{lstlisting}
+
+The \texttt{go test ./...} command executes tests throughout the module. The \texttt{go vet ./...} command performs additional static analysis and can identify certain classes of programming error.\\
+
+A clean development workflow should run formatting, testing, and static analysis regularly, particularly before the code is committed to version control.
+
+\subsection{Testing the Development Environment}
+
+Go has built-in support for unit testing. A test file usually has the suffix \texttt{\_test.go}. For example, a simple test could be placed in \texttt{main_test.go}:
+
+\begin{lstlisting}
+package main
+
+import "testing"
+
+func TestExample(t *testing.T) {
+    expected := "Hello, Go!"
+
+    if expected != "Hello, Go!" {
+        t.Errorf("unexpected result")
+    }
+}
+\end{lstlisting}
+
+Tests can be executed using:
+
+\begin{lstlisting}
+go test ./...
+\end{lstlisting}
+
+For larger projects, the test suite should be executed automatically as part of the development and integration process.
+
+\subsection{Version Control}
+
+Git should normally be used to manage the source code of a Go project. A new repository can be initialised with:
+
+\begin{lstlisting}
+git init
+\end{lstlisting}
+
+The repository should contain the source code \texttt{go.mod} and, where appropriate, \texttt{go.sum}. Build output, editor-specific configuration, temporary files, and other generated content should generally not be committed.\\
+
+A suitable \texttt{.gitignore} file can be used to prevent unwanted files from being added to the repository. The precise contents depend on the project and development tools being used.
+
+\subsection{Managing Dependencies}
+
+Go's module system provides a controlled mechanism for managing external dependencies. A dependency can be added using:
+
+\begin{lstlisting}
+go get example.com/some/package
+\end{lstlisting}
+
+The dependency is then recorded in the module's dependency information. Developers should avoid manually copying third-party source code into a project when a properly versioned Go module is available.
+
+The dependency graph can be maintained with:
+
+\begin{lstlisting}
+go mod tidy
+\end{lstlisting}
+
+This helps keep the project configuration clean and ensures that required and unused dependencies are accurately represented.
+
+\subsection{Cross-Platform Development}
+
+One of Go's significant advantages is its support for cross-platform compilation. A program developed on Windows can, for example, be compiled for Linux by specifying the target operating system and architecture:
+
+\begin{lstlisting}
+GOOS=linux GOARCH=amd64 go build
+\end{lstlisting}
+
+In Windows PowerShell, the environment variables can instead be specified as
+
+\begin{lstlisting}
+$env:GOOS = "linux"
+$env:GOARCH = "amd64"
+go build
+\end{lstlisting}
+
+The exact target should be selected according to the system on which the resulting executable will run. This capability is particularly useful when applications are developed on Windows but deployed to Linux servers or containers.
+
+\subsection{Keeping the Environment Clean}
+
+A clean development environment should minimise unnecessary global configuration. Projects should use Go modules, dependencies should be explicitly versioned, and source code should remain separate from the Go installation. Developers should also avoid modifying the system-wide configuration unless necessary.\\
+
+Go's module cache is managed automatically by the toolchain, so developers generally do not need to manually download or copy dependencies into individual projects. Similarly, Go applications should normally be built using the project's module definition rather than relying on manually configured library paths.\\
+
+It is also good practice to keep the Go version consistent across a development team. The required version can be specified in the project's \texttt{go.mod} file, allowing developers and automated build systems to identify the expected language and toolchain version.\\
+
+\subsection{Recommended Development Workflow}
+
+Once the environment has been configured, a typical development workflow is:
+
+\begin{enumerate}
+    \item Create or clone the project repository.
+    \item Initialise or verify the Go module.
+    \item Open the project in the chosen editor or IDE.
+    \item Implement the required functionality.
+    \item Format the source code using \texttt{gofmt} or the editor's Go integration.
+    \item Run the test suite using \texttt{go test ./...}.
+    \item Run static analysis using \texttt{go vet ./...}.
+    \item Run \texttt{go mod tidy} when dependencies change.
+    \item Build the application using \texttt{go build}.
+    \item Commit the source code and the module files to Git.
+\end{enumerate}
+
+Following this process provides a consistent development environment for both Windows and Linux. Separates application source code from the underlying Go installation, provides reproducible dependency management, and uses the standard Go tooling for formatting, testing, analysis, and compilation. The result is a development environment that is relatively simple to maintain, while remaining suitable for professional software development.

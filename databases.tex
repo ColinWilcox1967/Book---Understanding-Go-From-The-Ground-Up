@@ -1,0 +1,473 @@
+\section{Support for Database Management}
+
+\subsection{Introduction}
+
+Go, commonly referred to as Golang, provides extensive support for database connectivity, data persistence, transaction processing, and database-driven application development. Its database ecosystem includes standard-library interfaces, database-specific drivers, object-relational mapping (ORM) frameworks, type-safe query-generation tools, and libraries for distributed data systems.\\
+
+The principal standard-library package for relational database access is \texttt{database/sql}. It provides a common programming interface for executing SQL statements, retrieving records, managing transactions and maintaining connection pools. Database-specific drivers implement the underlying communication protocols, allowing application code to use a consistent interface across different database management systems (DBMSs).\\
+
+Go applications can integrate with a wide range of database technologies, including:
+
+\begin{itemize}
+    \item \textbf{Relational databases:} PostgreSQL, MySQL, MariaDB, SQLite and Microsoft SQL Server.
+    \item \textbf{Document databases:} MongoDB and other document-oriented storage systems through dedicated drivers.
+    \item \textbf{Key-value stores:} Redis and similar in-memory or persistent storage systems.
+    \item \textbf{Distributed databases:} CockroachDB, Cassandra and other systems through their respective clients or drivers.
+    \item \textbf{Cloud-managed databases:} managed relational and non-relational database services offered by major cloud providers.
+\end{itemize}
+
+The choice of database depends on the application's data model, consistency requirements, transaction semantics, scalability objectives and operational constraints. Go provides integration mechanisms rather than prescribing a particular database architecture.
+
+\subsection{The \texttt{database/sql} Package}
+
+The \texttt{database/sql} package defines a driver-independent API for relational database operations. It separates application logic from the implementation details of a particular database protocol.\\
+
+The principal abstractions are:
+
+\begin{itemize}
+    \item \texttt{sql.DB}: represents a database handle and manages a pool of underlying connections. It is safe for concurrent use by multiple goroutines.
+    \item \texttt{sql.Conn}: represents a dedicated connection obtained from the connection pool.
+    \item \texttt{sql.Rows}: represents the result set returned by a query.
+    \item \texttt{sql.Row}: represents a single-row query result.
+    \item \texttt{sql.Tx}: represents a database transaction.
+    \item \texttt{sql.Stmt}: represents a prepared SQL statement.
+\end{itemize}
+
+The \texttt{sql.DB} object is not normally a single physical connection. Instead, it manages connections and creates or reuses them as required. Consequently, it should generally be initialised once and shared across application components.\\
+
+A driver must be registered or otherwise made available before the application can establish a connection. For example, PostgreSQL applications commonly use \texttt{github.com/jackc/pgx/v5/stdlib}, which exposes the pgx driver through the \texttt{database/sql} interface.
+
+\subsection{Establishing a Database Connection}
+
+The following example demonstrates how to establish and verify a PostgreSQL connection using Go's standard database interface.
+
+\begin{lstlisting}
+package main
+
+import (
+    "context"
+    "database/sql"
+    "log"
+    "os"
+    "time"
+
+    _ "github.com/jackc/pgx/v5/stdlib"
+)
+
+func main() {
+    dsn := os.Getenv("DATABASE_URL")
+    if dsn == "" {
+        log.Fatal("DATABASE_URL is not configured")
+    }
+
+    db, err := sql.Open("pgx", dsn)
+    if err != nil {
+        log.Fatal(err)
+    }
+    defer db.Close()
+
+    db.SetMaxOpenConns(25)
+    db.SetMaxIdleConns(10)
+    db.SetConnMaxLifetime(30 * time.Minute)
+
+    ctx, cancel := context.WithTimeout(
+        context.Background(),
+        5*time.Second,
+    )
+    defer cancel()
+
+    if err := db.PingContext(ctx); err != nil {
+        log.Fatal(err)
+    }
+
+    log.Println("Database connection verified")
+}
+\end{lstlisting}
+
+The example imports the PostgreSQL driver and registers it through its package initialisation mechanism. The blank import makes the driver available without referring to its exported identifiers directly.\\
+
+The call to \texttt{sql.Open} generally initialises a database handle rather than immediately establishing a physical connection. The subsequent \texttt{PingContext} verifies connectivity within the specified deadline.\\
+
+The connection-pool settings illustrate three important controls:
+
+\begin{itemize}
+    \item \texttt{SetMaxOpenConns} limits the number of simultaneously open connections.
+    \item \texttt{SetMaxIdleConns} controls the number of idle connections retained for reuse.
+    \item \texttt{SetConnMaxLifetime} limits the lifetime of pooled connections.
+\end{itemize}
+
+These values should be configured according to the database's capacity, application concurrency, deployment topology and total connection budget. In containerised environments, connection limits must be considered across all application replicas rather than for a single process in isolation.
+
+\subsection{Executing Queries and Retrieving Records}
+
+Go supports SQL queries that return either a single row or multiple rows. The choice depends on the expected cardinality of the result.\\
+
+For a single-row query, \texttt{QueryRowContext} can be used with \texttt{Scan}. For a query returning multiple records, \texttt{QueryContext} returns a \texttt{sql.Rows} object that must be iterated and closed.
+
+Consider the following database table:
+
+\begin{lstlisting}
+CREATE TABLE users (
+    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    email VARCHAR(255) NOT NULL UNIQUE
+);
+\end{lstlisting}
+
+A corresponding Go structure and query function can be implemented as follows:
+
+\begin{lstlisting}
+type User struct {
+    ID    int64
+    Name  string
+    Email string
+}
+
+func getUser(
+    ctx context.Context,
+    db *sql.DB,
+    id int64,
+) (User, error) {
+    var user User
+
+    err := db.QueryRowContext(
+        ctx,
+        `SELECT id, name, email
+         FROM users
+         WHERE id = $1`,
+        id,
+    ).Scan(
+        &user.ID,
+        &user.Name,
+        &user.Email,
+    )
+
+    if err != nil {
+        return User{}, fmt.Errorf(
+            "retrieve user: %w",
+            err,
+        )
+    }
+
+    return user, nil
+}
+\end{lstlisting}
+
+The example assumes PostgreSQL parameter syntax and requires the \texttt{context}, \texttt{database/sql} and \texttt{fmt} packages. The returned error should be inspected with \texttt{errors.Is} or \texttt{errors.As} when the caller needs to distinguish between conditions such as \texttt{sql.ErrNoRows} and other database failures.\\
+
+For multiple-row queries, the general pattern is:
+
+\begin{lstlisting}
+rows, err := db.QueryContext(
+    ctx,
+    `SELECT id, name, email FROM users ORDER BY id`,
+)
+if err != nil {
+    return err
+}
+defer rows.Close()
+
+for rows.Next() {
+    var user User
+
+    if err := rows.Scan(
+        &user.ID,
+        &user.Name,
+        &user.Email,
+    ); err != nil {
+        return err
+    }
+
+    // Process user.
+}
+
+if err := rows.Err(); err != nil {
+    return err
+}
+\end{lstlisting}
+
+Closing the result set releases associated resources. Checking \texttt{rows.Err()} after iteration is important because errors may occur while fetching subsequent records rather than during the initial query.
+
+\subsection{Inserting, Updating and Deleting Records}
+
+Go applications can perform data modification using \texttt{ExecContext}. This method is appropriate for SQL statements that do not need to return a result set.\\
+
+For example, inserting a user into PostgreSQL can be implemented as follows:
+
+\begin{lstlisting}
+func createUser(
+    ctx context.Context,
+    db *sql.DB,
+    name string,
+    email string,
+) (int64, error) {
+    var id int64
+
+    err := db.QueryRowContext(
+        ctx,
+        `INSERT INTO users (name, email)
+         VALUES ($1, $2)
+         RETURNING id`,
+        name,
+        email,
+    ).Scan(&id)
+
+    if err != nil {
+        return 0, fmt.Errorf(
+            "create user: %w",
+            err,
+        )
+    }
+
+    return id, nil
+}
+\end{lstlisting}
+
+The PostgreSQL \texttt{RETURNING} clause retrieves the identifier generated by the database. This approach avoids the need for a separate query to retrieve the newly created record's identifier.\\
+
+For updates and deletions, \texttt{ExecContext} returns a \texttt{sql.Result}, which can provide the number of affected rows.
+
+\begin{lstlisting}
+result, err := db.ExecContext(
+    ctx,
+    `UPDATE users SET name = $1 WHERE id = $2`,
+    newName,
+    userID,
+)
+if err != nil {
+    return err
+}
+
+affected, err := result.RowsAffected()
+if err != nil {
+    return err
+}
+
+if affected == 0 {
+    return sql.ErrNoRows
+}
+\end{lstlisting}
+
+The interpretation of affected-row counts depends on the database and the SQL operation. An update affecting zero rows may mean that a record does not exist, or that no row required modification. Applications should define their semantics accordingly.
+
+\subsection{Transactions and Data Consistency}
+
+Transactions allow several database operations to be executed as one logical unit. They are important when an operation must preserve consistency across multiple writes or reads.\\
+
+Go provides transaction support through \texttt{sql.Tx}. A transaction is initiated with \texttt{BeginTx}, and its changes are either committed or rolled back.
+
+For example:
+
+\begin{lstlisting}
+func transfer(
+    ctx context.Context,
+    db *sql.DB,
+    fromID int64,
+    toID int64,
+    amount int64,
+) error {
+    if amount <= 0 {
+        return errors.New("amount must be positive")
+    }
+
+    tx, err := db.BeginTx(ctx, nil)
+    if err != nil {
+        return err
+    }
+    defer tx.Rollback()
+
+    result, err := tx.ExecContext(
+        ctx,
+        `UPDATE accounts
+         SET balance = balance - $1
+         WHERE id = $2 AND balance >= $1`,
+        amount,
+        fromID,
+    )
+    if err != nil {
+        return err
+    }
+
+    affected, err := result.RowsAffected()
+    if err != nil {
+        return err
+    }
+    if affected != 1 {
+        return errors.New(
+            "source account missing or insufficient funds",
+        )
+    }
+
+    result, err = tx.ExecContext(
+        ctx,
+        `UPDATE accounts
+         SET balance = balance + $1
+         WHERE id = $2`,
+        amount,
+        toID,
+    )
+    if err != nil {
+        return err
+    }
+
+    affected, err = result.RowsAffected()
+    if err != nil {
+        return err
+    }
+    if affected != 1 {
+        return errors.New("destination account not found")
+    }
+
+    return tx.Commit()
+}
+\end{lstlisting}
+
+This example assumes an accounts table with a suitable schema and balance representation. It requires the \texttt{context}, \texttt{database/sql} and \texttt{errors} packages.\\
+
+The deferred rollback is a safety measure: it is harmless after a successful commit and rolls back an unfinished transaction when an earlier operation fails. The conditional debit prevents the balance from becoming negative under the stated business rule, subject to the database's transaction and isolation semantics.\\
+
+Production financial systems also require appropriate locking or isolation, constraints, idempotency controls and a decision about how to handle an uncertain commit outcome caused by a network failure. The example is illustrative and is not, by itself, a complete financial transaction implementation.\\
+
+\subsection{Prepared Statements and SQL Injection Prevention}
+
+Database drivers generally support parameterised statements. Values should be passed separately from SQL text rather than concatenated into a query string.
+
+For example, the following pattern is unsafe:
+
+\begin{lstlisting}
+query := "SELECT * FROM users WHERE email = '" +
+    email + "'"
+\end{lstlisting}
+
+If the input contains SQL syntax, concatenation may alter the meaning of the query. The safer alternative is:
+
+\begin{lstlisting}
+row := db.QueryRowContext(
+    ctx,
+    `SELECT id, name FROM users WHERE email = $1`,
+    email,
+)
+\end{lstlisting}
+
+Parameterised queries allow the driver and database to distinguish SQL instructions from supplied values. Placeholder syntax varies by driver; PostgreSQL commonly uses \texttt{\$1}, whereas other drivers may use \texttt{?}.\\
+
+Parameters generally cannot replace SQL identifiers, table names or keywords. If an application must select a column or table dynamically, it should map user input to an explicit allow-list of permitted identifiers.\\
+
+\subsection{Object-Relational Mapping and Type-Safe Query Generation}
+
+Although \texttt{database/sql} provides a direct interface to SQL, some applications benefit from higher-level database abstractions.\\
+
+An object-relational mapper (ORM) maps database records to programming-language structures and provides abstractions for queries, associations and persistence.
+
+\begin{itemize}
+    \item \textbf{GORM:} provides model-based persistence, associations, migrations and a chainable query interface.
+    \item \textbf{Ent:} provides a schema-driven entity framework with generated APIs and support for modelling relationships.
+    \item \textbf{SQLC:} generates typed Go functions from SQL queries and database schema information.
+    \item \textbf{SQL builders:} libraries such as Squirrel provide composable query construction without requiring a full ORM.
+\end{itemize}
+
+For example, GORM can define a model and insert a record:
+
+\begin{lstlisting}
+type Product struct {
+    ID    uint   `gorm:"primaryKey"`
+    Name  string `gorm:"size:200;not null"`
+    Price int64  `gorm:"not null"`
+}
+
+func createProduct(
+    db *gorm.DB,
+    name string,
+    price int64,
+) error {
+    if price < 0 {
+        return errors.New("price cannot be negative")
+    }
+
+    product := Product{
+        Name:  name,
+        Price: price,
+    }
+
+    return db.Create(&product).Error
+}
+\end{lstlisting}
+
+The example requires GORM and the \texttt{errors} package. The \texttt{Price} field is represented as an integer, which could be used for a currency's minor units when the currency and rounding rules are defined explicitly.\\
+
+ORMs can reduce repetitive code, but they may also obscure generated SQL, complicate complex queries and introduce additional runtime behaviour. For applications that depend on complex SQL or predictable query plans, direct SQL or generated query code may be more appropriate.\\
+
+SQLC provides a different approach: developers write SQL explicitly, and the tool generates typed Go interfaces for executing the queries. This preserves SQL visibility while reducing manual row scanning and mapping.\\
+
+\subsection{NoSQL Databases and Other Storage Systems}
+
+Go's database ecosystem is not limited to relational databases. Dedicated clients provide access to document stores, key-value databases, distributed databases and cloud-managed storage systems.\\
+
+For example, MongoDB applications can use the official Go driver to communicate with a document database. Redis applications can use a Redis client to perform key-value operations, caching and certain coordination tasks.\\
+
+These systems generally do not use \texttt{database/sql} as their primary interface because their data models and protocols differ from conventional relational SQL databases.\\
+
+The choice between relational and non-relational storage should be based on data relationships, consistency requirements, query patterns, indexing, operational complexity and expected workload. Go provides the language-level integration mechanisms, but database-specific semantics remain important.
+
+\subsection{Schema Migrations and Database Versioning}
+
+Database schemas evolve as applications acquire new features. Go applications commonly use migration tools to apply ordered schema changes and maintain a record of the current schema version.\\
+
+Migration tools include \texttt{golang-migrate/migrate} and Atlas. Depending on the project, migrations may be expressed as SQL files or generated from declarative schema definitions.\\
+
+A migration might create a table as follows:
+
+\begin{lstlisting}
+CREATE TABLE products (
+    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    name VARCHAR(200) NOT NULL,
+    price BIGINT NOT NULL CHECK (price >= 0)
+);
+\end{lstlisting}
+
+In production, schema migrations should be version-controlled, reviewed and tested against representative database environments. Destructive migrations should be planned carefully, especially when application versions coexist during rolling deployments.\\
+
+A robust deployment strategy often separates schema migration from application start-up so that multiple application instances do not attempt incompatible schema changes simultaneously.\\
+
+\subsection{Testing and Database Reliability}
+
+Database-dependent code should be tested at multiple levels. Unit tests can validate business logic using interfaces or controlled test doubles, while integration tests verify the behaviour of actual queries against a real database engine.\\
+
+Important testing considerations include:
+
+\begin{itemize}
+    \item Correct handling of missing records and constraint violations.
+    \item Transaction commit and rollback behaviour.
+    \item Query correctness and migration compatibility.
+    \item Connection failure and timeout handling.
+    \item Concurrent access and transaction isolation.
+    \item Behaviour under realistic data volumes.
+\end{itemize}
+
+Using an in-memory substitute can be useful for certain tests, but it may not reproduce the SQL dialect, locking behaviour, indexing or transaction semantics of the production database. Critical database integration tests should therefore use the same database engine and a representative configuration wherever practical.\\
+
+Operational reliability also depends on bounded query execution times, connection-pool sizing, monitoring of connection usage, appropriate indexes and carefully designed retry policies. Retrying a failed database operation is not always safe: the application must consider whether the original operation may already have committed.
+
+\subsection{Advantages and Limitations}
+
+Go offers several advantages for database-driven application development:
+
+\begin{itemize}
+    \item A standard database abstraction through \texttt{database/sql}.
+    \item Support for connection pooling and concurrent access.
+    \item Context-aware query execution and cancellation.
+    \item Compatibility with a broad range of relational and non-relational databases.
+    \item Access to direct SQL, ORM frameworks and generated type-safe query code.
+    \item Integrated testing and tooling that support maintainable database applications.
+\end{itemize}
+
+However, Go does not eliminate the need for database-specific knowledge. Developers must understand SQL semantics, transaction isolation, indexing, connection management and failure handling. The standard library also does not provide a universal built-in driver for every database, so external drivers or dedicated clients are required.
+
+\subsection{Conclusion}
+
+Go provides a mature foundation for database integration through its standard database interfaces, driver ecosystem, transaction support and concurrency primitives. The \texttt{database/sql} package is particularly useful for relational database access, while ORM frameworks and SQL code-generation tools provide alternative approaches to persistence.\\
+
+The language supports applications ranging from small data-driven web services to large distributed systems. Effective database development in Go nevertheless depends on appropriate schema design, parameterised queries, transaction management, connection-pool configuration, migration discipline and comprehensive testing.
+
+
+

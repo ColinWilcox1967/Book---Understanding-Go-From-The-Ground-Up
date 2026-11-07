@@ -1,0 +1,1042 @@
+\section{Performance Optimisation in the Go}
+
+\subsection{Introduction}
+
+Performance optimisation is the process of improving a programme's execution speed, memory efficiency, throughput, latency, or resource utilisation while preserving its correctness and maintainability. In the Go programming language, performance optimisation involves understanding the compiler, runtime, memory allocator, garbage collector, concurrency model, and standard library.\\
+
+Go provides several features that support the development of efficient applications, including compiled machine code, static typing, lightweight goroutines, channels, efficient networking primitives, automatic memory management, and a comprehensive profiling toolchain. Nevertheless, the performance of a Go program depends heavily on algorithm selection, data structures, allocation patterns, synchronisation strategies and the workload under which it executes.\\
+
+Optimisation should therefore follow a systematic process rather than rely on assumptions about which language constructs are inherently fast.\\
+
+A typical optimisation process consists of the following stages:
+
+\begin{enumerate}
+    \item Define the performance objectives and identify measurable requirements.
+    \item Establish a representative workload and obtain a baseline measurement.
+    \item Profile the application to identify computational, memory or concurrency bottlenecks.
+    \item Investigate the underlying causes of the observed behaviour.
+    \item Implement a targeted optimisation.
+    \item Repeat the measurements to verify the improvement.
+    \item Test correctness, concurrency safety and performance under realistic operating conditions.
+\end{enumerate}
+
+This methodology is important because an optimisation that improves one metric may adversely affect another. For example, reducing memory allocations may increase CPU consumption, while increasing concurrency may improve throughput but worsen tail latency.
+
+\subsection{Understanding Performance Metrics}
+
+Before optimising an application, it is necessary to distinguish between the principal performance metrics.
+
+\subsubsection{Execution Time}
+
+Execution time measures how long a program or operation takes to complete. It may refer to the duration of an individual function, a request, a transaction, or an entire application run.\\
+
+For example, if an operation takes \(100\) milliseconds before optimisation and \(40\) milliseconds afterward, the speed-up is
+
+\[
+S = \frac{T_{\mathrm{before}}}{T_{\mathrm{after}}}
+\]
+
+where \(T_{\mathrm{before}}\) and \(T_{\mathrm{after}}\) represent the execution times before and after optimisation.
+
+In this example,
+
+\[
+S = \frac{100}{40} = 2.5
+\]
+
+The optimised operation is \(2.5\) times as fast under the measured conditions.\\
+
+The percentage reduction in execution time is
+
+\[
+R =
+\frac{T_{\mathrm{before}}-T_{\mathrm{after}}}
+     {T_{\mathrm{before}}}
+\times 100\%
+\]
+
+Therefore,
+
+\[
+R = \frac{100-40}{100}\times 100\% = 60\%
+\]
+
+These calculations are meaningful only when the measurements use comparable inputs, environments and measurement procedures.
+
+\subsubsection{Throughput}
+
+Throughput measures the amount of work completed per unit of time. It is commonly expressed as requests per second, transactions per second or records processed per second.\\
+
+For a server, increasing throughput may involve reducing the CPU cost of each request, improving database access patterns or allowing independent requests to execute concurrently.\\
+
+However, throughput alone does not describe responsiveness. A system may process more requests per second while individual requests experience longer delays.
+
+\subsubsection{Latency}
+
+Latency is the time required to complete an individual operation. For network services, it is useful to examine several percentiles:
+
+\begin{itemize}
+    \item \(p_{50}\): the median latency.
+    \item \(p_{95}\): the latency below which approximately \(95\%\) of observations fall.
+    \item \(p_{99}\): the latency below which approximately \(99\%\) of observations fall.
+\end{itemize}
+
+The higher percentiles reveal delays that may be hidden by average latency. Garbage collection, lock contention, queueing, network delays and uneven workload distribution can all contribute to tail latency.
+
+\subsubsection{Memory Consumption}
+
+Memory performance includes several distinct quantities:
+
+\begin{itemize}
+    \item Allocation rate: the number of bytes allocated per unit of time.
+    \item Live heap size: the memory occupied by reachable heap objects.
+    \item Total heap allocation: the cumulative volume of heap memory allocated.
+    \item Process memory: the overall memory footprint of the running process.
+    \item Garbage-collection overhead: the CPU time and scheduling costs associated with memory reclamation.
+\end{itemize}
+
+These quantities are related but not interchangeable. A program may have a relatively small live heap while allocating large amounts of temporary memory, causing frequent garbage collection.\\
+
+Conversely, a program may allocate relatively little memory per second but retain a large cache or other long-lived data structure.
+
+\subsection{Benchmarking in Go}
+
+Go includes a benchmarking framework in the \texttt{testing} package. Benchmarks provide repeatable measurements of the time and allocation costs associated with specific operations.\\
+
+A benchmark function follows the naming convention \texttt{BenchmarkXxx} and accepts a pointer to \texttt{testing.B}.\\
+
+Consider the following implementation:
+
+\begin{lstlisting}
+package main
+
+func Sum(values []int) int {
+    total := 0
+
+    for _, value := range values {
+        total += value
+    }
+
+    return total
+}
+\end{lstlisting}
+
+A corresponding benchmark can be written as follows:
+
+\begin{lstlisting}
+package main
+
+import "testing"
+
+var benchmarkResult int
+
+func BenchmarkSum(b *testing.B) {
+    values := make([]int, 10000)
+
+    for i := range values {
+        values[i] = i
+    }
+
+    b.ResetTimer()
+
+    for i := 0; i < b.N; i++ {
+        benchmarkResult = Sum(values)
+    }
+}
+\end{lstlisting}
+
+The global variable \texttt{benchmarkResult} ensures that the computed result remains observable, reducing the possibility that the compiler can eliminate the operation as unused work.\\
+
+The benchmark can be executed using:
+
+\begin{lstlisting}
+go test -bench=. -benchmem
+\end{lstlisting}
+
+The \texttt{-benchmem} option reports memory allocation statistics in addition to execution time. Typical output includes:
+
+\begin{lstlisting}
+BenchmarkSum-8    100000    12000 ns/op    0 B/op    0 allocs/op
+\end{lstlisting}
+
+This output is illustrative rather than a prediction of actual performance. The reported values depend on the processor, Go version, compiler settings, input data and runtime environment.
+
+The fields represent:
+
+\begin{itemize}
+    \item The benchmark name and, commonly, the value of \texttt{GOMAXPROCS}.
+    \item The number of benchmark iterations performed.
+    \item The average time per operation.
+    \item The average bytes allocated per operation.
+    \item The average number of allocations per operation.
+\end{itemize}
+
+For more reliable comparisons, benchmarks should be run repeatedly under similar system conditions. The \texttt{benchstat} tool can help compare benchmark results statistically.\\
+
+For example, benchmark results can be saved and compared using:
+
+\begin{lstlisting}
+go test -run=^$ -bench=. -benchmem -count=10 > before.txt
+
+# Apply the optimisation, then run again.
+go test -run=^$ -bench=. -benchmem -count=10 > after.txt
+
+benchstat before.txt after.txt
+\end{lstlisting}
+
+The \texttt{benchstat} utility is distributed through the Go performance tooling ecosystem and may need to be installed separately.\\
+
+Benchmarks should represent realistic workloads. An isolated microbenchmark may not reflect the behaviour of an application affected by networking, storage, contention or garbage collection.
+
+\subsection{CPU Profiling}
+
+CPU profiling identifies where a program spends its execution time. It is one of the most useful techniques for finding computational bottlenecks.\\
+
+Go provides CPU profiling through the \texttt{runtime/pprof} package and through the benchmarking and testing tools.\\
+
+For example, a benchmark profile can be collected using:
+
+\begin{lstlisting}
+go test -bench=BenchmarkSum \
+    -cpuprofile=cpu.prof
+\end{lstlisting}
+
+The profile can then be examined using:
+
+\begin{lstlisting}
+go tool pprof cpu.prof
+\end{lstlisting}
+
+Within the interactive profiler, the \texttt{top} command displays functions ranked by their contribution to CPU time. The \texttt{list} command can display source-level information for a function, while the \texttt{web} command can display a graphical call graph when the required visualisation tools are available.\\
+
+CPU profiles commonly distinguish between two measurements:
+
+\begin{itemize}
+    \item \textbf{Flat time:} time attributed directly to a function, excluding its descendants.
+    \item \textbf{Cumulative time:} time attributed to a function together with the functions it calls.
+\end{itemize}
+
+A function with high cumulative time may be an important optimisation target because it invokes expensive operations. However, the actual bottleneck may lie in a frequently called function deeper in the call tree.\\
+
+For example, a profile may reveal that a server spends substantial CPU time encoding JSON. The appropriate response might be to reduce unnecessary fields, avoid repeated serialisation, or change the data representation where appropriate. Rewriting unrelated business logic would be unlikely to help.\\
+
+CPU profiling is most effective when performed against representative inputs and under realistic load. Profiling itself introduces some overhead, so its measurements should be interpreted accordingly.
+
+\subsection{Memory Profiling and Allocation Optimisation}
+
+Memory profiling identifies where memory is allocated and which allocations account for substantial memory usage.\\
+
+Go's heap profiler distinguishes between allocation activity and memory retained by live objects. Both perspectives are important when diagnosing memory problems.\\
+
+A memory profile can be generated during a test:
+
+\begin{lstlisting}
+go test -bench=. -memprofile=mem.prof
+\end{lstlisting}
+
+It can then be examined using:
+
+\begin{lstlisting}
+go tool pprof mem.prof
+\end{lstlisting}
+
+Depending on the selected profile and profiler commands, useful measurements include cumulative allocated bytes and currently allocated bytes.\\
+
+High cumulative allocation may indicate that a program repeatedly constructs temporary objects. High retained memory may indicate that objects remain reachable longer than intended.
+
+\subsubsection{Reducing Unnecessary Allocations}
+
+Consider the following function:
+
+\begin{lstlisting}
+func FormatUser(name string, id int) string {
+    return fmt.Sprintf(
+        "user=%s id=%d",
+        name,
+        id,
+    )
+}
+\end{lstlisting}
+
+The \texttt{fmt.Sprintf} function provides flexible formatting, but it may incur additional processing and allocation overhead compared with simpler alternatives.\\
+
+If the output format is straightforward, a builder can be used:
+
+\begin{lstlisting}
+func FormatUser(name string, id int) string {
+    var builder strings.Builder
+
+    builder.WriteString("user=")
+    builder.WriteString(name)
+    builder.WriteString(" id=")
+    builder.WriteString(strconv.Itoa(id))
+
+    return builder.String()
+}
+\end{lstlisting}
+
+This alternative avoids the general formatting machinery of \texttt{fmt.Sprintf}, although \texttt{strconv.Itoa} and the builder may still involve allocations.\\
+
+Whether it is faster depends on the workload and implementation. The correct approach is to benchmark both versions using representative values.\\
+
+The relevant principle is not that one function is always faster than another, but that specialised operations can be more efficient when they match the task closely.\\
+
+\subsubsection{Preallocating Slices}
+
+Slices grow dynamically when their capacity is insufficient. If the expected size is known, preallocating capacity can reduce repeated allocations and copying.\\
+
+For example:
+
+\begin{lstlisting}
+func GenerateValues(n int) []int {
+    values := make([]int, 0, n)
+
+    for i := 0; i < n; i++ {
+        values = append(values, i)
+    }
+
+    return values
+}
+\end{lstlisting}
+
+The initial capacity is set to \(n\), allowing all \(n\) elements to be appended without growing the backing array, provided that the number of appended elements does not exceed \(n\).\\
+
+Without a capacity hint, the backing array may need to grow several times. Each growth can involve allocating a new array and copying existing elements.\\
+
+However, preallocation should reflect a reasonable estimate of the required size. Allocating an unnecessarily large slice can increase memory consumption and worsen cache behaviour.
+
+\subsubsection{Avoiding Repeated String Concatenation}
+
+Repeatedly concatenating strings in a loop can create unnecessary intermediate strings.\\
+
+For example:
+
+\begin{lstlisting}
+func JoinValues(values []string) string {
+    result := ""
+
+    for _, value := range values {
+        result += value
+    }
+
+    return result
+}
+\end{lstlisting}
+
+Depending on compiler optimisation and the input, this approach may repeatedly allocate storage and copy previously accumulated characters.\\
+
+A builder is generally more suitable for constructing a string incrementally:
+
+\begin{lstlisting}
+func JoinValues(values []string) string {
+    var builder strings.Builder
+
+    for _, value := range values {
+        builder.WriteString(value)
+    }
+
+    return builder.String()
+}
+\end{lstlisting}
+
+If the approximate output size is known, \texttt{strings.Builder.Grow} can reserve additional capacity:
+
+\begin{lstlisting}
+var builder strings.Builder
+builder.Grow(1024)
+\end{lstlisting}
+
+The argument specifies additional capacity to reserve relative to the builder's current length. A suitable capacity can reduce growth-related allocations.\\
+
+The \texttt{strings.Builder} type should not be copied after it has begun to be used. It is designed for a single construction sequence and has specific copying restrictions.
+
+\subsection{Compiler Optimisation and Escape Analysis}
+
+The Go compiler performs a range of optimisations, including inlining, dead-code elimination, escape analysis, and register allocation.\\
+
+Understanding these mechanisms can help explain the performance differences between apparently similar implementations.
+
+\subsubsection{Function Inlining}
+
+Inlining replaces a function call with the function's body at the call site when the compiler determines that inlining is appropriate.
+
+For example:
+
+\begin{lstlisting}
+func Square(x int) int {
+    return x * x
+}
+
+func Calculate(x int) int {
+    return Square(x) + 1
+}
+\end{lstlisting}
+
+The compiler may inline \texttt{Square} into \texttt{Calculate}. This can eliminate function-call overhead and expose additional optimisation opportunities.\\
+
+Inlining decisions depend on the compiler's heuristics, function complexity, optimisation settings and Go version.\\
+
+Inlining is not always beneficial. Expanding large functions at multiple call sites can increase generated code size and adversely affect instruction-cache behaviour.\\
+
+Compiler diagnostics can help inspect inlining decisions:
+
+\begin{lstlisting}
+go build -gcflags="-m" .
+\end{lstlisting}
+
+The output may identify functions that can be inlined and functions that escape to the heap.
+
+\subsubsection{Escape Analysis}
+
+Escape analysis determines whether values can safely remain in a limited-lifetime storage region, such as a goroutine's stack, or require longer-lived storage.\\
+
+Consider:
+
+\begin{lstlisting}
+func LocalCalculation() int {
+    value := 100
+    return value * 2
+}
+\end{lstlisting}
+
+The compiler can normally keep the value in stack storage or optimise it away entirely.\\
+
+By contrast:
+
+\begin{lstlisting}
+type Item struct {
+    Value int
+}
+
+func CreateItem() *Item {
+    item := Item{Value: 100}
+    return &item
+}
+\end{lstlisting}
+
+The returned pointer must remain valid after the function returns. The compiler will ordinarily allocate the object on the heap if it cannot otherwise prove that a longer-lived stack allocation is safe.\\
+
+Heap allocation can increase garbage-collection work, but the exact effect depends on the number, size and lifetime of the allocated objects.\\
+
+Taking the address of a variable does not automatically cause a heap allocation. The compiler determines the appropriate storage based on how the pointer is used.\\
+
+Escape analysis should therefore be investigated with compiler diagnostics and measurements rather than by assuming that particular syntax always causes allocation.
+
+\subsection{Data Structures and Algorithmic Complexity}
+
+Algorithm selection is often more important than low-level optimisation. A better algorithm can reduce computational complexity by orders of magnitude.\\
+
+Suppose a program searches for duplicate integers using nested loops:
+
+\begin{lstlisting}
+func HasDuplicate(values []int) bool {
+    for i := 0; i < len(values); i++ {
+        for j := i + 1; j < len(values); j++ {
+            if values[i] == values[j] {
+                return true
+            }
+        }
+    }
+
+    return false
+}
+\end{lstlisting}
+
+In the worst case, the function performs a number of comparisons proportional to \(n^2\), where \(n\) is the number of elements.\\
+
+Its worst-case time complexity is therefore
+
+\[
+T(n) = O(n^2)
+\]
+
+A map-based implementation can reduce the expected time complexity:
+
+\begin{lstlisting}
+func HasDuplicate(values []int) bool {
+    seen := make(map[int]struct{}, len(values))
+
+    for _, value := range values {
+        if _, exists := seen[value]; exists {
+            return true
+        }
+
+        seen[value] = struct{}{}
+    }
+
+    return false
+}
+\end{lstlisting}
+
+Under typical hash-map behaviour, the expected time complexity is \(O(n)\), with additional memory proportional to the number of distinct elements.\\
+
+The value type \texttt{struct\{\}} occupies no storage for its fields, making it useful for representing set membership. However, map entries still require runtime-managed storage, so the set is not free of memory overhead.\\
+
+This example illustrates the trade-off between time and space complexity. The map-based approach is often preferable for large inputs, whereas the nested-loop approach may be simpler and use less auxiliary memory for small inputs.\\
+
+Algorithm selection should reflect the size and characteristics of the data, the required performance and the application's memory constraints.\\
+
+\subsection{Concurrency and Parallelism}
+
+Go provides goroutines and channels as fundamental concurrency mechanisms. Concurrency can improve throughput when tasks can proceed independently, while parallelism allows multiple tasks to execute simultaneously on different processor cores.\\
+
+However, concurrency introduces costs such as scheduling, synchronisation, communication, contention and memory allocation.
+
+\subsubsection{Using Goroutines Effectively}
+
+Consider a CPU-intensive task that processes independent values:
+
+\begin{lstlisting}
+func Process(values []int) {
+    for i, value := range values {
+        values[i] = value * value
+    }
+}
+\end{lstlisting}
+
+For sufficiently large workloads, the computation may benefit from dividing the input into independent partitions and processing them concurrently.\\
+
+A worker-based implementation can use a bounded number of goroutines:
+
+\begin{lstlisting}
+func ProcessParallel(
+    values []int,
+    workers int,
+) {
+    if workers < 1 {
+        workers = 1
+    }
+
+    if workers > len(values) {
+        workers = len(values)
+    }
+
+    if len(values) == 0 {
+        return
+    }
+
+    var wg sync.WaitGroup
+
+    chunkSize := (len(values) + workers - 1) / workers
+
+    for start := 0; start < len(values); start += chunkSize {
+        end := start + chunkSize
+        if end > len(values) {
+            end = len(values)
+        }
+
+        wg.Add(1)
+
+        go func(start, end int) {
+            defer wg.Done()
+
+            for i := start; i < end; i++ {
+                values[i] *= values[i]
+            }
+        }(start, end)
+    }
+
+    wg.Wait()
+}
+\end{lstlisting}
+
+The example requires the \texttt{sync} package. It partitions the slice into non-overlapping ranges, so each goroutine writes to a distinct set of elements. The caller must not concurrently modify or otherwise access those elements without appropriate synchronisation.\\
+
+For CPU-bound work, the number of workers should be selected with reference to the available processor resources and the workload's characteristics. The \texttt{runtime.GOMAXPROCS} setting determines how many operating-system threads may execute Go code simultaneously.\\
+
+Creating a goroutine for every small operation can introduce more scheduling overhead than the parallelism saves. Bounded worker pools are often more effective for large collections of tasks.\\
+
+For I/O-bound operations, concurrency may improve throughput even when the work does not require continuous CPU execution, because goroutines can make progress while other operations wait for network or storage activity.\\
+
+\subsubsection{Avoiding Excessive Synchronisation}
+
+Shared mutable state can introduce lock contention. For example, if many goroutines repeatedly update the same map under a single mutex, access to that map may become a bottleneck.\\
+
+Possible alternatives include:
+
+\begin{itemize}
+    \item Partitioning the data so that workers update independent structures.
+    \item Aggregating local results and combining them after processing.
+    \item Reducing the frequency of lock acquisition.
+    \item Using atomic operations for suitable simple state updates.
+    \item Using specialised concurrent data structures where appropriate.
+\end{itemize}
+
+These techniques are not universally interchangeable. For example, atomic operations are useful for particular counters and state transitions, but they do not automatically make arbitrary multi-step data-structure operations safe.\\
+
+The \texttt{-race} option can help detect data races during testing:
+
+\begin{lstlisting}
+go test -race ./...
+\end{lstlisting}
+
+Race detection adds substantial runtime overhead, so race-enabled execution should not be used as the basis for ordinary performance comparisons.\\
+
+\subsection{Channel and Synchronisation Overhead}
+
+Channels provide typed communication and synchronisation between goroutines. They are valuable for coordinating concurrent work, but their use introduces runtime operations and potentially blocking behaviour.\\
+
+For example:
+
+\begin{lstlisting}
+func Worker(jobs <-chan int, results chan<- int) {
+    for job := range jobs {
+        results <- job * job
+    }
+}
+\end{lstlisting}
+
+The worker receives jobs from a channel, performs a calculation and sends results to another channel.\\
+
+For tasks that involve substantial processing, the cost of channel communication may be negligible compared with the work performed. For extremely small tasks, however, channel operations, scheduling and synchronisation can become significant.\\
+
+A performance-sensitive application should consider:
+
+\begin{itemize}
+    \item Whether the work genuinely requires concurrent execution.
+    \item Whether channel communication is the clearest and most efficient coordination mechanism.
+    \item Whether a buffered channel would reduce unnecessary blocking.
+    \item Whether the number of workers is appropriate for the workload.
+    \item Whether producers and consumers can become blocked indefinitely.
+\end{itemize}
+
+A buffered channel can reduce producer-consumer synchronisation when the buffer has available capacity. It does not eliminate synchronisation or guarantee improved performance.\\
+
+Channels should not be replaced with shared memory solely because a microbenchmark shows lower overhead. The overall design must still preserve correctness, ownership and maintainability.
+
+\subsection{Garbage Collection and Memory Efficiency}
+
+Go uses a concurrent tracing garbage collector to reclaim unreachable heap objects. Although automatic memory management simplifies application development, garbage collection consumes CPU resources and can affect latency.\\
+
+Performance can often be improved by reducing unnecessary allocations and avoiding unintended object retention.
+
+\subsubsection{Reducing Temporary Allocations}
+
+Consider a function that creates a temporary slice on every invocation:
+
+\begin{lstlisting}
+func Calculate(values []int) int {
+    temporary := make([]int, len(values))
+
+    for i, value := range values {
+        temporary[i] = value * 2
+    }
+
+    total := 0
+
+    for _, value := range temporary {
+        total += value
+    }
+
+    return total
+}
+\end{lstlisting}
+
+The temporary slice may be unnecessary because the calculation can be performed directly:
+
+\begin{lstlisting}
+func Calculate(values []int) int {
+    total := 0
+
+    for _, value := range values {
+        total += value * 2
+    }
+
+    return total
+}
+\end{lstlisting}
+
+The second version avoids the temporary slice allocation and the additional traversal.\\
+
+This optimisation improves both memory usage and execution work while preserving the result. Such transformations are generally more reliable than attempting to tune garbage collection before eliminating unnecessary allocations.
+
+\subsubsection{Object Reuse}
+
+The \texttt{sync.Pool} type can help reuse temporary objects across independent operations:
+
+\begin{lstlisting}
+var bufferPool = sync.Pool{
+    New: func() any {
+        return new(bytes.Buffer)
+    },
+}
+
+func BuildMessage(text string) string {
+    buffer := bufferPool.Get().(*bytes.Buffer)
+    buffer.Reset()
+
+    defer bufferPool.Put(buffer)
+
+    buffer.WriteString("message: ")
+    buffer.WriteString(text)
+
+    return buffer.String()
+}
+\end{lstlisting}
+
+The pool may reduce allocations when buffers are repeatedly created and discarded. However, the runtime may remove pooled objects at any time, including during garbage collection.\\
+
+Pooling is therefore a performance optimisation rather than a correctness mechanism. It is useful when measurements demonstrate that temporary object allocation is a meaningful cost.\\
+
+Care must also be taken not to return an object to the pool while another part of the program still uses it. Objects should be reset appropriately before reuse, and excessively large objects may need to be discarded rather than retained.\\
+
+\subsubsection{Garbage-Collection Tuning}
+
+Go exposes the garbage collector's heap-growth target through \texttt{GOGC} and the \texttt{runtime/debug.SetGCPercent} function.
+
+For example:
+
+\begin{lstlisting}
+package main
+
+import "runtime/debug"
+
+func main() {
+    debug.SetGCPercent(150)
+
+    // Application logic follows.
+}
+\end{lstlisting}
+
+A higher value generally permits greater heap growth between collection cycles, potentially reducing collection frequency while increasing memory usage.\\
+
+A lower value generally causes collection to occur more frequently, potentially reducing heap growth while increasing CPU overhead.\\
+
+These settings should be adjusted only after examining the application's allocation rate, live heap size, collection frequency and latency requirements.\\
+
+For applications operating under memory constraints, \texttt{GOMEMLIMIT} or \texttt{runtime/debug.SetMemoryLimit} can influence the runtime's memory-management behaviour. The memory limit is soft rather than an absolute guarantee on total process memory.\\
+
+\subsection{Efficient File and Network I/O}
+
+Many Go applications spend a substantial proportion of their execution time waiting for files, databases or remote services. In these cases, reducing CPU instructions may have less impact than improving I/O behaviour.\\
+
+\subsubsection{Buffered File I/O}
+
+The \texttt{bufio} package provides buffered readers and writers. Buffering can reduce the number of small underlying I/O operations by accumulating data and transferring it in larger units.\\
+
+For example:
+
+\begin{lstlisting}
+func WriteLines(w io.Writer, lines []string) error {
+    writer := bufio.NewWriter(w)
+
+    for _, line := range lines {
+        if _, err := writer.WriteString(line); err != nil {
+            return err
+        }
+
+        if err := writer.WriteByte('\n'); err != nil {
+            return err
+        }
+    }
+
+    return writer.Flush()
+}
+\end{lstlisting}
+
+The function writes multiple lines through a buffered writer and explicitly flushes the buffer before returning.\\
+
+If the buffer is not flushed, some data may remain in memory rather than being passed to the underlying writer. Error handling is also important because failures can occur during the final flush.\\
+
+Buffering is especially useful when many small writes would otherwise result in frequent system calls. The optimal buffer size depends on the workload and underlying device.
+
+\subsubsection{Reusing HTTP Clients}
+
+Go's \texttt{net/http} package supports connection reuse through its HTTP transport implementation.\\
+
+Creating a new HTTP client for every request is generally unnecessary. Reusing a client allows its transport to reuse connections where possible.\\
+
+For example:
+
+\begin{lstlisting}
+var httpClient = &http.Client{
+    Timeout: 5 * time.Second,
+}
+
+func Fetch(url string) (*http.Response, error) {
+    return httpClient.Get(url)
+}
+\end{lstlisting}
+
+The client can be reused concurrently by multiple goroutines.\\
+
+The caller remains responsible for closing the response body. A typical implementation would consume and close it:
+
+\begin{lstlisting}
+func FetchText(url string) (string, error) {
+    response, err := httpClient.Get(url)
+    if err != nil {
+        return "", err
+    }
+    defer response.Body.Close()
+
+    if response.StatusCode < 200 ||
+        response.StatusCode >= 300 {
+        return "", fmt.Errorf(
+            "unexpected HTTP status: %s",
+            response.Status,
+        )
+    }
+
+    data, err := io.ReadAll(response.Body)
+    if err != nil {
+        return "", err
+    }
+
+    return string(data), nil
+}
+\end{lstlisting}
+
+This example requires the appropriate \texttt{fmt}, \texttt{io}, \texttt{net/http} and \texttt{time} imports, as well as the shared client definition.\\
+
+Reusing clients and transports can reduce connection-establishment overhead. Correct timeout configuration, response-body handling and connection-pool settings are also important for reliability under load.
+
+\subsection{Optimising JSON Processing}
+
+JSON encoding and decoding are common sources of CPU work and allocation in Go applications.\\
+
+The standard library's \texttt{encoding/json} package provides convenient support for converting between JSON documents and Go values.\\
+
+For example:
+
+\begin{lstlisting}
+type User struct {
+    ID    int    `json:"id"`
+    Name  string `json:"name"`
+    Email string `json:"email"`
+}
+
+func DecodeUser(data []byte) (User, error) {
+    var user User
+
+    err := json.Unmarshal(data, &user)
+
+    return user, err
+}
+\end{lstlisting}
+
+The standard library should generally be the starting point because it provides established behaviour and broad compatibility.\\
+
+Potential optimisation techniques include:
+
+\begin{itemize}
+    \item Avoiding repeated decoding of identical data.
+    \item Decoding only when the application requires the result.
+    \item Reusing buffers where appropriate.
+    \item Avoiding unnecessary conversions between byte slices and strings.
+    \item Processing large input streams incrementally where suitable.
+    \item Using concrete structures rather than generic maps when the schema is known.
+\end{itemize}
+
+For example, decoding into \texttt{map[string]any} is useful when the document's structure is unknown, but decoding into a concrete structure can make field access simpler and avoid some dynamic type handling.\\
+
+Alternative JSON libraries may offer different performance characteristics, but they can also differ in compatibility, supported features and security properties. A replacement should be selected through representative benchmarks and compatibility testing rather than by relying on published speed claims alone.\\
+
+\subsection{CPU Cache Locality and Data Layout}
+
+Modern processors use multiple levels of cache to reduce the latency of accessing frequently used data. Program performance can be affected by how data is laid out in memory and the order in which it is accessed.\\
+
+Sequential access to contiguous arrays often provides good spatial locality. Pointer-heavy structures, such as linked lists, can require more unpredictable memory accesses.\\
+
+For example, iterating through a slice:
+
+\begin{lstlisting}
+func Sum(values []int) int {
+    total := 0
+
+    for _, value := range values {
+        total += value
+    }
+
+    return total
+}
+\end{lstlisting}
+
+typically traverses contiguous memory. This can make efficient use of processor caches and hardware prefetching.\\
+
+A linked-list traversal, by contrast, follows pointers between separately allocated nodes:
+
+\begin{lstlisting}
+type Node struct {
+    Value int
+    Next  *Node
+}
+
+func SumList(node *Node) int {
+    total := 0
+
+    for node != nil {
+        total += node.Value
+        node = node.Next
+    }
+
+    return total
+}
+\end{lstlisting}
+
+The linked-list version may suffer from less predictable memory access and additional pointer chasing.\\
+
+However, the slice is not universally preferable. Linked lists can be useful when stable node references or particular insertion and removal semantics are required.\\
+
+Data layout should therefore reflect the operations that dominate the workload. When iteration and numerical processing are important, contiguous arrays and slices are often effective choices.
+
+\subsection{Avoiding False Sharing}
+
+False sharing occurs when multiple processor cores modify distinct variables that occupy the same cache line. Although the variables are logically independent, cache-coherence traffic can reduce performance.\\
+
+For example, two goroutines may repeatedly update separate counters stored close together in memory. If those counters occupy the same cache line, writes by one core can interfere with the other core's access.\\
+
+False sharing is primarily relevant to highly concurrent, write-intensive workloads. It is not generally necessary to pad structures pre-emptively.\\
+
+Possible remedies include reorganising data so that independently updated fields are separated, assigning state to individual workers and combining results afterwards, or using per-worker counters.\\
+
+Padding structures to separate cache lines is an architecture-sensitive optimisation and should be attempted only when profiling or specialised benchmarks indicate that false sharing is significant.
+
+\subsection{Compiler and Build Configuration}
+
+Go's build tools provide optimisations by default. In ordinary production builds, developers should generally rely on the standard compiler optimisations unless measurements identify a specific problem.\\
+
+A typical production build can be created using:
+
+\begin{lstlisting}
+go build -o application .
+\end{lstlisting}
+
+The \texttt{-ldflags} option can pass linker flags. For example, applications that do not require build information in their executable may use:
+
+\begin{lstlisting}
+go build -ldflags="-s -w" -o application .
+\end{lstlisting}
+
+The \texttt{-s} and \texttt{-w} linker flags remove symbol-table and debugging-information data from the resulting binary. They can reduce executable size, but they do not generally improve the application's algorithmic execution speed.\\
+
+Removing debugging information can make post-deployment diagnostics more difficult, so separate symbols or appropriate profiling artefacts may be required for production support.\\
+
+Compiler optimisation controls such as \texttt{-gcflags} are useful for investigation, but disabling optimisations is rarely appropriate for a normal production build.\\
+
+Go applications should also be built and benchmarked with the intended Go version and target architecture. Compiler and runtime improvements between versions can materially affect performance.
+
+\subsection{Application-Level Profiling with HTTP Services}
+
+For long-running HTTP applications, Go provides the \texttt{net/http/pprof} package, which exposes profiling information through HTTP handlers.\\
+
+A diagnostic server can be enabled by importing the package:
+
+\begin{lstlisting}
+import _ "net/http/pprof"
+\end{lstlisting}
+
+When the default HTTP mux is configured appropriately, the package registers profiling endpoints under \texttt{/debug/pprof/}.\\
+
+A CPU profile can be collected from a running application using a command such as:
+
+\begin{lstlisting}
+go tool pprof \
+    http://localhost:6060/debug/pprof/profile?seconds=30
+\end{lstlisting}
+
+The application must expose the profiling handlers on the specified address and port. This is a diagnostic example, not a complete server configuration.\\
+
+Profiling endpoints can expose sensitive operational information and should not be made publicly accessible without appropriate protection. In production, they should generally be restricted to trusted administrative interfaces or otherwise secured.\\
+
+The \texttt{net/http/pprof} package also supports heap profiles, goroutine profiles, blocking profiles and mutex profiles. These help investigate different categories of performance problems.\\
+
+For example:
+
+\begin{itemize}
+    \item CPU profiles reveal where processor time is spent.
+    \item Heap profiles identify allocation sites and retained memory.
+    \item Goroutine profiles reveal blocked or unexpectedly numerous goroutines.
+    \item Block profiles identify time spent waiting on synchronisation primitives.
+    \item Mutex profiles help identify lock contention.
+\end{itemize}
+
+The appropriate profile depends on the symptom. High CPU utilisation calls for a different investigation from increasing memory usage or rising request latency.\\
+
+\subsection{Performance Optimisation and Amdahl's Law}
+
+Amdahl's law explains why optimising one component of a program has limited impact when that component accounts for only a small fraction of total execution time.\\
+
+If a fraction \(P\) of execution time is improved by a factor \(S\), the overall speed-up is
+
+\[
+S_{\mathrm{overall}}
+=
+\frac{1}
+{(1-P)+\frac{P}{S}}
+\]
+
+Suppose a function accounts for \(20\%\) of total execution time and an optimisation makes that function ten times faster.
+
+Then
+
+\[
+S_{\mathrm{overall}}
+=
+\frac{1}
+{0.8+\frac{0.2}{10}}
+=
+\frac{1}{0.82}
+\approx 1.22
+\]
+
+The overall speed-up is only about \(1.22\) times, despite the tenfold improvement in the optimised function.\\
+
+This demonstrates why profiling is essential. Optimising a small part of an application cannot substantially improve overall performance unless it also reduces work elsewhere or removes a larger system-level bottleneck.\\
+
+Amdahl's law is particularly relevant when deciding whether to optimise a small utility function, parallelise a computational loop or redesign an expensive subsystem.
+
+\subsection{Common Performance Optimisation Mistakes}
+
+Several common mistakes can reduce the effectiveness of optimisation work.
+
+\begin{itemize}
+    \item \textbf{Optimising without measuring.} Intuitive assumptions about slow code are frequently incorrect.
+    \item \textbf{Using unrealistic benchmarks.} Microbenchmarks may not represent actual application workloads.
+    \item \textbf{Ignoring allocation behaviour.} Excessive short-lived allocations can increase garbage-collection overhead.
+    \item \textbf{Creating excessive goroutines.} More concurrency does not automatically produce higher throughput.
+    \item \textbf{Introducing unnecessary locks or channels.} Synchronisation can become a bottleneck when used excessively.
+    \item \textbf{Overusing object pools.} Pooling can increase complexity and retain unnecessarily large objects.
+    \item \textbf{Tuning the garbage collector prematurely.} Algorithmic improvements and allocation reductions may produce greater benefits.
+    \item \textbf{Ignoring tail latency.} Average execution time can conceal serious delays affecting a minority of requests.
+    \item \textbf{Sacrificing correctness.} An optimisation that introduces races, resource leaks or incorrect results is not a valid improvement.
+    \item \textbf{Assuming implementation details are guarantees.} Compiler and runtime behaviour can change between Go releases.
+\end{itemize}
+
+The objective is not to minimise every allocation or eliminate every function call. It is to achieve the required performance with an appropriate balance of efficiency, correctness and maintainability.
+
+\subsection{A Practical Performance Optimisation Workflow}
+
+A disciplined optimisation workflow can be organised into the following stages.
+
+\begin{enumerate}
+    \item \textbf{Define the target.} Specify requirements such as maximum request latency, minimum throughput or a memory budget.
+
+    \item \textbf{Establish a baseline.} Use benchmarks, load tests and runtime metrics to record the current behaviour.
+
+    \item \textbf{Identify the bottleneck.} Use CPU, heap, goroutine, block or mutex profiles according to the observed symptoms.
+
+    \item \textbf{Select a targeted change.} Consider algorithmic complexity, data layout, allocation reduction, I/O behaviour or concurrency.
+
+    \item \textbf{Implement the change.} Keep the modification focused so that its effects can be evaluated clearly.
+
+    \item \textbf{Verify correctness.} Run unit tests, integration tests and race detection where relevant.
+
+    \item \textbf{Measure again.} Repeat the original benchmark or load test under comparable conditions.
+
+    \item \textbf{Evaluate trade-offs.} Check whether improvements in execution time or throughput cause unacceptable increases in memory consumption, latency or complexity.
+
+    \item \textbf{Monitor production behaviour.} Confirm that the improvement persists under real workloads and across relevant deployment environments.
+\end{enumerate}
+
+This workflow provides a repeatable basis for performance engineering and reduces the risk of making changes that have little practical benefit.
+
+\subsection{Conclusion}
+
+Performance optimisation in Go requires a combination of algorithmic reasoning, measurement, compiler awareness, memory-management knowledge, and effective concurrency design.\\
+
+The Go toolchain provides extensive support for this work through benchmarking, CPU profiling, heap profiling, runtime statistics and compiler diagnostics. These facilities allow developers to identify expensive functions, excessive allocations, memory retention, synchronisation overhead and other sources of inefficiency.\\
+
+The most significant improvements often arise from choosing better algorithms, eliminating unnecessary work, reducing avoidable allocations, using data structures suited to the workload, and designing concurrency carefully. Buffered I/O, connection reuse, appropriate slice capacities, and targeted garbage-collection tuning can provide further improvements when measurements justify them.\\
+
+The fundamental principle is that optimisation should be evidence-driven. Developers should establish a baseline, identify the dominant bottleneck, apply a targeted change and verify the result under representative conditions. This approach helps produce Go applications that are efficient, scalable and maintainable without introducing unnecessary complexity.\\

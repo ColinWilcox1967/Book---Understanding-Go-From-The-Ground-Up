@@ -1,0 +1,817 @@
+\section{Generics in the Go Programming Language}
+
+\subsection{Introduction}
+
+Generics are a programming language feature that enables functions, data structures and types to be written in a manner that is independent of specific data types. Instead of implementing separate versions of the same algorithm for integers, floating-point numbers, strings or other types, a programmer can define a single generic implementation that operates on a range of permitted types.\\
+
+Go introduced generics in version 1.18, released in March 2022. The feature extended the language's type system with type parameters, type arguments, constraints and type inference. These facilities allow reusable, statically type-checked code to be written without relying on interfaces and type assertions for every operation.\\
+
+Before generics were introduced, developers commonly used several approaches to implement reusable algorithms:
+
+\begin{itemize}
+    \item Writing separate functions for each supported type.
+    \item Using interfaces to represent common behaviour.
+    \item Using the empty interface, \texttt{interface\{\}}, together with type assertions.
+    \item Using code generation to produce type-specific implementations.
+\end{itemize}
+
+Each approach has advantages, but also limitations. Duplicate implementations increase maintenance costs, while solutions based on \texttt{interface\{\}} may require runtime type assertions and cannot express every type-dependent operation directly.\\
+
+Generics address these limitations by allowing a function or type to declare parameters representing types. The compiler checks that the supplied type arguments satisfy the declared constraints and that operations performed on generic values are valid for the permitted types.\\
+
+For example, a generic function can be defined to return the larger of two values:
+
+\begin{lstlisting}
+func Max[T ~int | ~int64 | ~float64](
+    a, b T,
+) T {
+    if a > b {
+        return a
+    }
+    return b
+}
+\end{lstlisting}
+
+The type parameter \texttt{T} represents a type selected by the caller. The constraint specifies that \texttt{T} may be an integer or floating-point type with one of the permitted underlying types. Consequently, the comparison operator is valid for every permitted type.\\
+
+The same implementation can operate on several numeric types without duplicating its algorithm.
+
+\subsection{Type Parameters and Type Arguments}
+
+The central concept in Go generics is the type parameter. A type parameter represents a type that is specified when a generic function or type is instantiated.\\
+
+A generic declaration introduces one or more type parameters in square brackets, immediately following the function or type name.\\
+
+For example:
+
+\begin{lstlisting}
+func Identity[T any](value T) T {
+    return value
+}
+\end{lstlisting}
+
+In this declaration, \texttt{T} is a type parameter, while \texttt{any} is its constraint.\\
+
+The function accepts an argument of type \texttt{T} and returns a value of the same type. The function does not depend on any particular concrete type.\\
+
+It can be called with explicit type arguments:
+
+\begin{lstlisting}
+number := Identity[int](42)
+text := Identity[string]("Go")
+\end{lstlisting}
+
+The expressions \texttt{int} and \texttt{string} are type arguments. They specify the concrete types that replace \texttt{T} for the corresponding instantiations.\\
+
+In many cases, Go can infer the type argument from the function arguments:
+
+\begin{lstlisting}
+number := Identity(42)
+text := Identity("Go")
+\end{lstlisting}
+
+The compiler infers \texttt{T} as \texttt{int} in the first call and \texttt{string} in the second call.\\
+
+Type inference reduces syntactic overhead without removing static type checking. The compiler must still establish that the inferred type satisfies the constraint and that the function body is valid for the permitted type operations.\\
+
+\subsection{The \texttt{any} Constraint}
+
+Go defines \texttt{any} as an alias for the empty interface:
+
+\begin{lstlisting}
+type any = interface{}
+\end{lstlisting}
+
+The \texttt{any} constraint allows any type to be used as a type argument, including built-in types, structures, pointers, slices, maps and user-defined types.\\
+
+Consider the following generic function:
+
+\begin{lstlisting}
+func PrintValue[T any](value T) {
+    fmt.Println(value)
+}
+\end{lstlisting}
+
+The function accepts values of arbitrary types and passes them to \texttt{fmt.Println}.\\
+
+However, the fact that a type parameter has the constraint \texttt{any} does not mean that every operation is valid on values of that type. The compiler permits only operations that are valid for the type parameter under its constraint.\\
+
+For example, the following function is invalid:
+
+\begin{lstlisting}
+func Add[T any](a, b T) T {
+    return a + b
+}
+\end{lstlisting}
+
+The expression \texttt{a + b} is not valid for every possible type. The constraint \texttt{any} does not guarantee that addition is supported.\\
+
+A more restrictive constraint must be used if the function requires a particular operation.\\
+
+\subsection{Type Constraints}
+
+A type constraint specifies the requirements that a type argument must satisfy. In Go, constraints are expressed using interfaces.\\
+
+Interfaces used as constraints can describe methods, permitted type sets, or combinations of these properties.\\
+
+A constraint can therefore specify either behavioural requirements, such as implementing a method, or restrictions on the kinds of types that may be supplied.
+
+\subsubsection{Constraints Based on Methods}
+
+Suppose an application needs to calculate the length of several different types of objects. A common method-based interface can describe the required behaviour:
+
+\begin{lstlisting}
+type Sizer interface {
+    Size() int
+}
+\end{lstlisting}
+
+A generic function can then accept any type that satisfies this interface:
+
+\begin{lstlisting}
+func ReportSize[T Sizer](value T) {
+    fmt.Println(value.Size())
+}
+\end{lstlisting}
+
+Any type argument supplied for \texttt{T} must implement the \texttt{Size() int} method.\\
+
+For example:
+
+\begin{lstlisting}
+type Document struct {
+    Content string
+}
+
+func (d Document) Size() int {
+    return len(d.Content)
+}
+
+type Image struct {
+    Width, Height int
+}
+
+func (i Image) Size() int {
+    return i.Width * i.Height
+}
+\end{lstlisting}
+
+Both types implement the \texttt{Sizer} interface because they provide a method with the required name, parameter list and result type.\\
+
+The generic function can therefore be called with either type:
+
+\begin{lstlisting}
+ReportSize(Document{
+    Content: "Generics in Go",
+})
+
+ReportSize(Image{
+    Width:  800,
+    Height: 600,
+})
+\end{lstlisting}
+
+This approach is useful when generic algorithms depend on common behaviour rather than on the concrete representation of their inputs.\\
+
+\subsubsection{Constraints Based on Type Sets}
+
+Go interfaces can also define type sets using type terms and union operators.\\
+
+For example:
+
+\begin{lstlisting}
+type Number interface {
+    int | int64 | float64
+}
+\end{lstlisting}
+
+The constraint permits the listed types. It can be used to define a generic function that adds two values:
+
+\begin{lstlisting}
+func Add[T Number](a, b T) T {
+    return a + b
+}
+\end{lstlisting}
+
+The compiler accepts the addition because every type in the constraint supports the operation.\\
+
+The following calls are valid:
+
+\begin{lstlisting}
+sum1 := Add[int](10, 20)
+sum2 := Add[int64](100, 200)
+sum3 := Add[float64](1.5, 2.5)
+\end{lstlisting}
+
+However, a string argument is rejected because \texttt{string} is not included in the type set.\\
+
+A type-set constraint is particularly useful when an algorithm requires specific operators, such as addition, multiplication or ordering, that are not represented by ordinary methods in Go.\\
+
+\subsection{The Underlying-Type Operator}
+
+Go provides the tilde operator, \texttt{\~{}}, for specifying types according to their underlying types.\\
+
+The underlying type of a defined type is the type from which its representation is derived. For example:
+
+\begin{lstlisting}
+type Celsius float64
+type Fahrenheit float64
+\end{lstlisting}
+
+Both \texttt{Celsius} and \texttt{Fahrenheit} have \texttt{float64} as their underlying type, although they are distinct defined types.\\
+
+A constraint that uses \texttt{\~{}float64} accepts types whose underlying type is \texttt{float64}:
+
+\begin{lstlisting}
+type Float interface {
+    ~float32 | ~float64
+}
+\end{lstlisting}
+
+A generic function using this constraint can accept built-in floating-point types and compatible defined types:
+
+\begin{lstlisting}
+func Double[T Float](value T) T {
+    return value * 2
+}
+\end{lstlisting}
+
+For example:
+
+\begin{lstlisting}
+temperature := Celsius(20)
+result := Double(temperature)
+\end{lstlisting}
+
+The result has type \texttt{Celsius}, not \texttt{float64}. The generic function preserves the concrete type argument.\\
+
+Without the tilde operator, a constraint such as \texttt{float64 | float32} would specify the listed types themselves rather than all defined types with those underlying types.\\
+
+The tilde operator is particularly valuable for writing reusable numerical algorithms that should operate on user-defined types while preserving their semantic identities.\\
+
+\subsection{Predeclared Constraints and the \texttt{comparable} Constraint}
+
+Go provides two important predeclared constraints: \texttt{any} and \texttt{comparable}.\\
+
+The \texttt{any} constraint permits all types. The \texttt{comparable} constraint restricts type arguments to types that support the equality operators \texttt{==} and \texttt{!=} under the language's comparability rules.\\
+
+For example:
+
+\begin{lstlisting}
+func Equal[T comparable](a, b T) bool {
+    return a == b
+}
+\end{lstlisting}
+
+The function can compare integers, strings, pointers and other comparable values.\\
+
+It can also accept a structure whose fields are all comparable:
+
+\begin{lstlisting}
+type Point struct {
+    X, Y int
+}
+
+p1 := Point{X: 10, Y: 20}
+p2 := Point{X: 10, Y: 20}
+
+fmt.Println(Equal(p1, p2))
+\end{lstlisting}
+
+The function prints \texttt{true} because the two structures have equal field values.\\
+
+However, slices, maps and functions are not comparable, except that each can be compared with \texttt{nil}. Consequently, a slice cannot ordinarily be supplied as the type argument to this \texttt{Equal} function.\\
+
+The \texttt{comparable} constraint is especially useful when implementing generic sets, equality operations and data structures that use values as map keys.\\
+
+It is important to distinguish the language's comparability rules from the notion of deep equality. For example, comparing two pointers checks whether they refer to the same address, not whether the pointed-to objects contain identical data.
+
+\subsection{Generic Functions}
+
+Generic functions are functions that declare type parameters. They allow a single algorithm to operate on multiple types while preserving compile-time type safety.
+
+\subsubsection{A Generic Function for Finding the Maximum}
+
+The following example defines a constraint for ordered values:
+
+\begin{lstlisting}
+type Ordered interface {
+    ~int | ~int8 | ~int16 | ~int32 | ~int64 |
+    ~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 |
+    ~uintptr | ~float32 | ~float64 | ~string
+}
+
+func Max[T Ordered](a, b T) T {
+    if a > b {
+        return a
+    }
+    return b
+}
+\end{lstlisting}
+
+The constraint lists types for which the ordering operator is supported, including defined types with the specified underlying types.\\
+
+The function can operate on integers, floating-point values and strings:
+
+\begin{lstlisting}
+fmt.Println(Max(10, 20))
+fmt.Println(Max(3.5, 2.1))
+fmt.Println(Max("apple", "orange"))
+\end{lstlisting}
+
+The compiler infers the type parameter from the arguments.\\
+
+For production code, a maintained constraints package may be preferable to defining a large numerical constraint manually. The \texttt{golang.org/x/exp/constraints} package has historically provided such constraints, although it is an external experimental package rather than part of the Go standard library.\\
+
+It is also important to consider the semantics of the operation. Floating-point comparisons involving NaN do not behave like ordinary total ordering, so a generic maximum function should document how it handles such values if they are possible in its application.\\
+
+\subsubsection{A Generic Function for Searching}
+
+Generics can also be used to implement algorithms that operate on comparable values:
+
+\begin{lstlisting}
+func Contains[T comparable](
+    values []T,
+    target T,
+) bool {
+    for _, value := range values {
+        if value == target {
+            return true
+        }
+    }
+
+    return false
+}
+\end{lstlisting}
+
+The function searches a slice and returns \texttt{true} if the target value is present.\\
+
+It can be used with different element types:
+
+\begin{lstlisting}
+numbers := []int{10, 20, 30}
+names := []string{"Alice", "Bob", "Charlie"}
+
+fmt.Println(Contains(numbers, 20))
+fmt.Println(Contains(names, "Bob"))
+\end{lstlisting}
+
+The implementation is identical for both types, and the compiler ensures that the target has the same type as the slice elements.\\
+
+This avoids the need to accept arbitrary values and perform runtime type assertions.
+
+\subsection{Generic Types}
+
+In addition to functions, Go permits type declarations to have type parameters. Generic types are useful for implementing reusable containers, data structures and abstractions whose behaviour depends on the type of the stored data.
+
+\subsubsection{A Generic Stack}
+
+A stack is a last-in, first-out data structure. A generic implementation can store values of any selected type.
+
+\begin{lstlisting}
+type Stack[T any] struct {
+    items []T
+}
+
+func (s *Stack[T]) Push(value T) {
+    s.items = append(s.items, value)
+}
+
+func (s *Stack[T]) Pop() (T, bool) {
+    var zero T
+
+    if len(s.items) == 0 {
+        return zero, false
+    }
+
+    index := len(s.items) - 1
+    value := s.items[index]
+
+    s.items[index] = zero
+    s.items = s.items[:index]
+
+    return value, true
+}
+\end{lstlisting}
+
+The type parameter \texttt{T} determines the type of values stored in the stack.\\
+
+A stack of integers can be declared as follows:
+
+\begin{lstlisting}
+var numbers Stack[int]
+
+numbers.Push(10)
+numbers.Push(20)
+
+value, ok := numbers.Pop()
+if ok {
+    fmt.Println(value)
+}
+\end{lstlisting}
+
+A stack of strings is a separate instantiation of the same generic type:
+
+\begin{lstlisting}
+var names Stack[string]
+
+names.Push("Alice")
+names.Push("Bob")
+\end{lstlisting}
+
+The implementation is reusable without sacrificing static type checking.\\
+
+The assignment \texttt{s.items[index] = zero} is important when the slice contains pointers or other reference-bearing values. It clears the removed element before reducing the slice length, preventing the backing array from unnecessarily retaining references to values that are no longer part of the stack.\\
+
+The zero value is obtained using a variable of type \texttt{T}, since Go does not provide a general expression that directly constructs the zero value of an arbitrary type parameter.
+
+\subsubsection{Generic Types with Multiple Parameters}
+
+A generic type can declare several type parameters:
+
+\begin{lstlisting}
+type Pair[A, B any] struct {
+    First  A
+    Second B
+}
+\end{lstlisting}
+
+The type can represent a pair of values with different types:
+
+\begin{lstlisting}
+person := Pair[string, int]{
+    First:  "Alice",
+    Second: 30,
+}
+\end{lstlisting}
+
+Here, \texttt{A} is \texttt{string}, while \texttt{B} is \texttt{int}.
+
+Multiple type parameters are useful for representing key-value pairs, results containing different success and error-related types, tuples and other structures with heterogeneous fields.
+
+\subsection{Methods on Generic Types}
+
+Methods can be associated with generic types. A method declaration refers to the type parameters of its receiver rather than introducing an independent set of type parameters.\\
+
+For example:
+
+\begin{lstlisting}
+type Box[T any] struct {
+    Value T
+}
+
+func (b Box[T]) Get() T {
+    return b.Value
+}
+
+func (b *Box[T]) Set(value T) {
+    b.Value = value
+}
+\end{lstlisting}
+
+The \texttt{Get} method returns the stored value, while \texttt{Set} modifies it through a pointer receiver.\\
+
+A concrete instance can be created as follows:
+
+\begin{lstlisting}
+box := Box[int]{Value: 42}
+
+fmt.Println(box.Get())
+
+box.Set(100)
+fmt.Println(box.Get())
+\end{lstlisting}
+
+The methods preserve the type parameter, so a \texttt{Box[int]} cannot be assigned a string value through its \texttt{Set} method.\\
+
+Go does not permit methods to introduce their own additional type parameters independently of the generic type. A method can use the type parameters declared by its receiver, but generic operations that require additional independent type parameters are normally expressed as functions.\\
+
+This restriction helps keep method sets and interface satisfaction well-defined.
+
+\subsection{Type Inference}
+
+Type inference allows the compiler to determine type arguments from the arguments supplied to a generic function or from other relevant type information.\\
+
+Consider:
+
+\begin{lstlisting}
+func First[T any](values []T) T {
+    return values[0]
+}
+\end{lstlisting}
+
+When the function is called as follows:
+
+\begin{lstlisting}
+numbers := []int{10, 20, 30}
+value := First(numbers)
+\end{lstlisting}
+
+the compiler infers that \texttt{T} is \texttt{int} because the argument has type \texttt{[]int}.\\
+
+Explicit type arguments remain available:
+
+\begin{lstlisting}
+value := First[int](numbers)
+\end{lstlisting}
+
+Both forms are valid.\\
+
+Inference is not unrestricted. It relies on the types of the arguments and the applicable language rules. If the compiler cannot infer the required type arguments, or if the inferred types fail to satisfy the constraints, the program is rejected.\\
+
+For generic functions that take no arguments from which a type can be inferred, explicit type arguments may be necessary.\\
+
+For example:
+
+\begin{lstlisting}
+func Zero[T any]() T {
+    var value T
+    return value
+}
+
+number := Zero[int]()
+text := Zero[string]()
+\end{lstlisting}
+
+The calls specify the type arguments explicitly because the function has no ordinary parameters from which the compiler could infer \texttt{T}.
+
+\subsection{Generic Interfaces}
+
+Interfaces can be parameterised using type parameters. A generic interface can describe a common abstraction whose methods depend on a type.
+
+For example:
+
+\begin{lstlisting}
+type Getter[T any] interface {
+    Get() T
+}
+\end{lstlisting}
+
+The interface describes types that provide a method returning a value of type \texttt{T}.\\
+
+The generic \texttt{Box} type defined earlier satisfies \texttt{Getter[int]} when instantiated as \texttt{Box[int]}, because its \texttt{Get} method returns an integer.\\
+
+A generic function can accept a value implementing the corresponding interface:
+
+\begin{lstlisting}
+func ReadValue[T any, G Getter[T]](
+    source G,
+) T {
+    return source.Get()
+}
+\end{lstlisting}
+
+The type parameters have separate roles. \texttt{T} represents the returned value's type, while \texttt{G} represents the concrete type implementing the interface.\\
+
+The compiler verifies that \texttt{G} implements \texttt{Getter[T]}.\\
+
+This design is useful when implementing generic algorithms that depend on behaviour while preserving a relationship between input and output types.\\
+
+\subsection{Type Sets and Constraint Composition}
+
+Constraint interfaces can combine multiple requirements. For example, an interface may require a method and restrict the permitted underlying types.
+
+\begin{lstlisting}
+type Integer interface {
+    ~int | ~int8 | ~int16 | ~int32 |
+    ~int64 | ~uint | ~uint8 | ~uint16 |
+    ~uint32 | ~uint64 | ~uintptr
+}
+\end{lstlisting}
+
+A constraint may embed other interfaces to combine their requirements:
+
+\begin{lstlisting}
+type MyConstraint interface {
+    Integer
+    SomeMethod()
+}
+\end{lstlisting}
+
+This constraint requires a type to belong to the type set described by \texttt{Integer} and to provide the required method.\\
+
+However, Go distinguishes between interfaces used as constraints and ordinary interfaces used as runtime values. An interface containing type terms, unions or other constraint-only elements generally cannot be used as the type of an ordinary variable or value.\\
+
+For example, an interface containing \texttt{\~{}int | \~{}int64} is suitable for constraining a type parameter, but not for declaring an ordinary interface variable that can dynamically hold values of those types.\\
+
+This distinction reflects the different roles of type sets and runtime interface values.\\
+
+\subsection{Generic Data Structures and the Standard Library}
+
+Generics are useful for implementing common data structures and algorithms without repeating code for each element type.\\
+
+Typical examples include:
+
+\begin{itemize}
+    \item Stacks and queues.
+    \item Sets and maps with specialised behaviour.
+    \item Linked lists and trees.
+    \item Searching and sorting algorithms.
+    \item Numeric calculations and transformations.
+    \item Reusable result and option types.
+\end{itemize}
+
+The Go standard library itself includes generic facilities. For example, the \texttt{slices} package provides functions for manipulating slices, and the \texttt{maps} package provides functions for operating on maps.\\
+
+The \texttt{slices} package includes operations such as \texttt{slices.Contains}, \texttt{slices.Sort} and \texttt{slices.Clone}, subject to the relevant type requirements.\\
+
+For example:
+
+\begin{lstlisting}
+package main
+
+import (
+    "fmt"
+    "slices"
+)
+
+func main() {
+    numbers := []int{5, 2, 8, 1}
+
+    slices.Sort(numbers)
+
+    fmt.Println(numbers)
+    fmt.Println(slices.Contains(numbers, 5))
+}
+\end{lstlisting}
+
+The program sorts the slice and checks whether the value \texttt{5} is present.\\
+
+These packages are preferable to custom implementations when their behaviour matches the application's requirements. They are maintained as part of the Go standard library and provide established implementations of common operations.\\
+
+The \texttt{slices} and \texttt{maps} packages were introduced in Go 1.21. Generic code should therefore be developed against an explicitly chosen Go version when compatibility with older toolchains matters.\\
+
+\subsection{Generics Compared with Interfaces}
+
+Generics and interfaces both support reusable abstractions, but they solve different problems.\\
+
+Generics express relationships between types at compile time. Interfaces describe method sets and allow values of different concrete types to be handled through a common runtime abstraction.\\
+
+For example, a generic function can preserve the relationship between an input slice and its element type:
+
+\begin{lstlisting}
+func Reverse[T any](values []T) []T {
+    result := make([]T, len(values))
+
+    for i, value := range values {
+        result[len(values)-1-i] = value
+    }
+
+    return result
+}
+\end{lstlisting}
+
+The function returns a slice containing values of the same type as the input slice.\\
+
+By contrast, an interface-based function might accept values through a shared behavioural contract:
+
+\begin{lstlisting}
+type Writer interface {
+    Write([]byte) (int, error)
+}
+
+func Send(w Writer, data []byte) error {
+    _, err := w.Write(data)
+    return err
+}
+\end{lstlisting}
+
+The \texttt{Send} function does not need to know the concrete type of its argument. It only needs the argument to implement the required method.\\
+
+The distinction can be summarised as follows:
+
+\begin{itemize}
+    \item \textbf{Generics} are useful when an algorithm must preserve or manipulate relationships between types.
+    \item \textbf{Interfaces} are useful when code should depend on behaviour rather than on a particular implementation.
+    \item \textbf{Concrete types} are often preferable when only one implementation is required and abstraction would add unnecessary complexity.
+\end{itemize}
+
+Generics do not replace interfaces. The two features are complementary and can be combined in the same program.\\
+
+\subsection{Generics Compared with Empty Interfaces and Type Assertions}
+
+Before Go introduced generics, developers sometimes used \texttt{interface\{\}} to represent values of arbitrary types.\\
+
+For example:
+
+\begin{lstlisting}
+func ContainsAny(
+    values []interface{},
+    target interface{},
+) bool {
+    for _, value := range values {
+        if value == target {
+            return true
+        }
+    }
+
+    return false
+}
+\end{lstlisting}
+
+This approach has limitations. A \texttt{[]int} cannot be passed directly as a \texttt{[]interface\{\}}, because slices of different element types are distinct types and Go does not automatically convert between them.\\
+
+The caller must construct a separate slice containing interface values. Furthermore, the function loses the direct relationship between the element type and the target type.\\
+
+A generic alternative is simpler:
+
+\begin{lstlisting}
+func Contains[T comparable](
+    values []T,
+    target T,
+) bool {
+    for _, value := range values {
+        if value == target {
+            return true
+        }
+    }
+
+    return false
+}
+\end{lstlisting}
+
+The generic implementation accepts a slice of the original element type and requires the target to have that same type.\\
+
+It also makes the equality requirement explicit through the \texttt{comparable} constraint.\\
+
+However, empty interfaces remain useful when a program genuinely needs to hold heterogeneous values, such as logging arbitrary values or processing data whose types are not known until runtime. Generics are most valuable when the type relationships can be expressed statically.\\
+
+\subsection{Limitations of Go Generics}
+
+Although generics increase the expressiveness of Go, the language deliberately places restrictions on generic declarations.
+
+\subsubsection{No General Generic Methods}
+
+Go does not permit a method to introduce its own independent type parameters. Methods can use the parameters of their generic receiver, but a method cannot declare an additional parameter list in the same manner as a generic function.\\
+
+When an operation requires a new independent type parameter, it should normally be expressed as a function.
+
+\subsubsection{Operations Must Be Supported by the Constraint}
+
+A generic function cannot apply arbitrary operations to a type parameter. The operations must be valid for the type set described by the constraint.\\
+
+For example, addition is invalid for a parameter constrained only by \texttt{any}, because some permitted types do not support addition.\\
+
+A more restrictive constraint is necessary whenever an algorithm depends on particular operators or methods.
+
+\subsubsection{Type Assertions on Type Parameters}
+
+Type parameters are not ordinary interface values. Consequently, a type assertion cannot be applied directly to a value whose static type is a type parameter.\\
+
+When runtime inspection is genuinely necessary, a generic value can be converted to an interface value first:
+
+\begin{lstlisting}
+func Inspect[T any](value T) {
+    var dynamic any = value
+
+    switch v := dynamic.(type) {
+    case int:
+        fmt.Println("Integer:", v)
+    case string:
+        fmt.Println("String:", v)
+    default:
+        fmt.Printf("Other type: %T\n", v)
+    }
+}
+\end{lstlisting}
+
+The example performs a type switch on the interface value. Such runtime inspection should be used when it is part of the intended design, rather than as a substitute for an appropriate compile-time constraint.
+
+\subsubsection{Generic Code Is Not Always Faster}
+
+Generics provide static type checking and reusable implementations, but do not guarantee better runtime performance than interfaces or concrete implementations.\\
+
+The Go compiler uses implementation-specific techniques to compile generic code, including specialised handling of type arguments and shared code, where appropriate. The exact implementation strategy is not a language guarantee.\\
+
+Performance depends on the generated code, the operations performed, allocation behaviour, inlining, and other optimisation decisions.\\
+
+Developers should benchmark representative workloads rather than assume that generic code is invariably faster or slower.
+
+\subsection{Best Practices for Using Generics}
+
+The following principles help ensure that generic code remains clear, efficient, and maintainable:
+
+\begin{itemize}
+    \item \textbf{Using generics removes meaningful duplication;} A generic algorithm is valuable when the same implementation naturally applies to several types.
+    \item \textbf{Choose the narrowest useful constraint.} Constraints should describe the operations and types actually required by the algorithm.
+    \item \textbf{Prefer clear names for type parameters.} Names such as \texttt{T}, \texttt{K} and \texttt{V} are common for simple abstractions, while descriptive names can improve readability in more complex declarations.
+    \item \textbf{Avoid unnecessary abstraction.} A small function for one concrete type may be easier to understand than a generic framework.
+    \item \textbf{Preserve type relationships.} Use type parameters when inputs and outputs must have related or identical types.
+    \item \textbf{Reuse standard-library implementations.} Packages such as \texttt{slices} and \texttt{maps} provide useful generic operations.
+    \item \textbf{Test constraints and edge cases.} Include tests for defined types, empty collections, zero values and boundary conditions.
+    \item \textbf{Measure performance.} Use benchmarks and profiling to evaluate allocation behaviour and execution costs.
+\end{itemize}
+
+Generic code should make the intended abstraction more explicit, not obscure the algorithm behind unnecessary layers of type parameters and constraints.
+
+\subsection{Conclusion}
+
+Generics are an important feature of modern Go programming. Introduced in Go 1.18, they enable functions, types, and interfaces to express reusable operations over a range of types while maintaining static type checking.\\
+
+The principal mechanisms are type parameters, type arguments, type inference, and constraints. Constraints define the permitted types and operations, including method requirements, unions of type terms, and restrictions based on underlying types.\\
+
+Generics support reusable algorithms and data structures, such as searching functions, stacks, pairs, and ordered-value operations. They also underpin useful standard-library facilities, such as the \texttt{slices} and \texttt{maps} packages.\\
+
+Their principal advantage is the ability to express relationships between types without duplicating algorithms or sacrificing compile-time safety. Nevertheless, generics do not eliminate the need for interfaces, concrete types or runtime type inspection. Each mechanism has a distinct role within Go's type system.\\
+
+Effective use of generics therefore requires selecting appropriate constraints, maintaining clear abstractions, and understanding the distinction between compile-time type relationships and runtime behaviour. When applied to problems that genuinely benefit from type-independent implementations, generics improve code reuse, type safety, and maintainability while remaining consistent with Go's emphasis on simplicity and explicit design.

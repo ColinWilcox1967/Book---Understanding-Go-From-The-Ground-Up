@@ -1,0 +1,463 @@
+\section{Packages and Modules in the Go Programming Language}
+
+Packages and modules are fundamental mechanisms for organising, reusing, and distributing software written in the Go programming language. Packages provide a means of grouping related source files and declarations into logical units, whilst modules define collections of related packages that are versioned and managed as a single unit of dependency management.
+
+Go uses packages to organise program code into reusable components and to control the visibility of identifiers. Modules build upon this structure by specifying module paths, declaring dependencies, and recording the versions of external packages required by an application or library. Together, packages and modules support modular software development, dependency management, collaboration, and the construction of large-scale applications.
+
+This section describes the organisation of packages, package declarations and imports, identifier visibility, module creation, dependency management, versioning, and best practices for structuring Go projects.
+
+\subsection{Packages in Go}
+
+A package is a collection of Go source files located in the same directory and belonging to the same package declaration. Packages provide a namespace for related functions, types, variables, constants, and other declarations.
+
+A package can encapsulate a particular responsibility, such as mathematical calculations, file processing, database access, or network communication. By grouping related functionality together, packages improve code organisation and reduce the need to place all declarations in a single source file.
+
+Every Go source file begins with a package clause. For example:
+
+\begin{lstlisting}
+package main
+
+import "fmt"
+
+func main() {
+    fmt.Println("Hello, Go!")
+}
+\end{lstlisting}
+
+The declaration \texttt{package main} identifies the package containing the program's entry point. The imported package \texttt{fmt} provides formatted input and output operations.
+
+In an executable application, the \texttt{main} package must contain a \texttt{main} function, which serves as the entry point when the executable is run. Other packages generally provide reusable functionality rather than defining an executable entry point.
+
+\subsection{Organisation of Package Source Files}
+
+A package may contain multiple source files. These files must reside in the same directory and ordinarily declare the same package name, although test files can use the package's name or its name followed by \texttt{\_test}.
+
+For example, a package named \texttt{calculator} might contain the following files:
+
+\begin{lstlisting}
+calculator/
+    addition.go
+    subtraction.go
+    multiplication.go
+\end{lstlisting}
+
+The files can share declarations within the same package without importing one another.
+
+The file \texttt{addition.go} could contain:
+
+\begin{lstlisting}
+package calculator
+
+func Add(a, b int) int {
+    return a + b
+}
+\end{lstlisting}
+
+The file \texttt{subtraction.go} could contain:
+
+\begin{lstlisting}
+package calculator
+
+func Subtract(a, b int) int {
+    return a - b
+}
+\end{lstlisting}
+
+Both files contribute declarations to the same package. A function defined in one file can call a function defined in another file of the same package, subject to the ordinary rules of scope and declaration.
+
+The Go compiler compiles the package as a unit rather than treating each source file as an independent package.
+
+\subsection{Importing Packages}
+
+The \texttt{import} declaration makes exported declarations from another package available to the importing source file. Imports are identified by import paths, which specify the package's location within the Go module or an external dependency.
+
+For example:
+
+\begin{lstlisting}
+package main
+
+import (
+    "fmt"
+    "math"
+)
+
+func main() {
+    radius := 5.0
+    area := math.Pi * radius * radius
+
+    fmt.Println("Area:", area)
+}
+\end{lstlisting}
+
+The program imports the standard-library packages \texttt{fmt} and \texttt{math}. The former provides formatted output, while the latter defines mathematical constants and functions.
+
+Multiple packages can be imported in a parenthesised import block. This is the conventional format when a source file requires several dependencies.
+
+An imported package is normally referenced using its package name. For example, \texttt{math.Pi} refers to the exported constant \texttt{Pi} from the \texttt{math} package.
+
+The package name does not necessarily have to match the final component of its import path. When needed, an import declaration can specify an explicit local name:
+
+\begin{lstlisting}
+import format "fmt"
+
+func main() {
+    format.Println("Hello")
+}
+\end{lstlisting}
+
+The alias \texttt{format} becomes the identifier used to refer to the imported package in that source file.
+
+\subsection{Package Visibility and Identifier Exporting}
+
+Go controls the visibility of identifiers primarily through capitalisation. An identifier whose name begins with an upper-case Unicode letter is exported, while an identifier beginning with a lower-case letter is unexported.
+
+Exported identifiers can be accessed from other packages, subject to the applicable language rules. Unexported identifiers can be accessed only from within the package in which they are declared.
+
+For example:
+
+\begin{lstlisting}
+package calculator
+
+const DefaultPrecision = 2
+
+func Add(a, b int) int {
+    return a + b
+}
+
+func validateInput(value int) bool {
+    return value >= 0
+}
+\end{lstlisting}
+
+In this example, \texttt{DefaultPrecision} and \texttt{Add} are exported because their names begin with upper-case letters. The function \texttt{validateInput} is unexported and cannot be called directly from another package.
+
+This mechanism allows package authors to expose a controlled public interface while keeping implementation details private.
+
+For example, another package can import \texttt{calculator} and call \texttt{calculator.Add}, but it cannot call \texttt{calculator.validateInput}.
+
+Identifier visibility is an important aspect of API design because it determines which parts of a package can be used by external code.
+
+\subsection{The Standard Library}
+
+Go includes a standard library containing packages for common programming tasks. These packages provide functionality for input and output, text processing, mathematical operations, networking, cryptography, concurrency support, testing, and other areas.
+
+Examples of commonly used standard-library packages include:
+
+\begin{itemize}
+    \item \texttt{fmt}: formatted input and output.
+    \item \texttt{strings}: string manipulation and searching.
+    \item \texttt{strconv}: conversions between strings and basic data types.
+    \item \texttt{math}: mathematical constants and functions.
+    \item \texttt{os}: operating-system functionality, including file access and environment variables.
+    \item \texttt{net/http}: HTTP clients and servers.
+    \item \texttt{encoding/json}: JSON encoding and decoding.
+    \item \texttt{testing}: support for automated tests and benchmarks.
+\end{itemize}
+
+Standard-library packages are imported using their documented import paths. They are distributed with the Go toolchain, so ordinary imports of these packages do not require separate module dependencies.
+
+Using the standard library where appropriate reduces external dependencies and provides access to functionality maintained as part of the Go project.
+
+\subsection{Modules in Go}
+
+A module is a collection of related Go packages that are versioned together. It is identified by a module path and described by a file named \texttt{go.mod}, located at the root of the module.
+
+The module path identifies the module and forms the prefix of the import paths of packages within it. For example, a module declared as \texttt{example.com/myapp} may contain packages imported using paths such as \texttt{example.com/myapp/calculator}.
+
+A module typically contains the following elements:
+
+\begin{itemize}
+    \item A \texttt{go.mod} file specifying the module path and relevant dependency and language-version information.
+    \item One or more directories containing Go packages.
+    \item Optional test files, documentation, configuration files, and other project resources.
+    \item A \texttt{go.sum} file, when required, recording checksums used to verify downloaded module dependencies.
+\end{itemize}
+
+The module is the principal unit used by Go's module-aware tooling for dependency resolution and version management.
+
+\subsection{Creating a Go Module}
+
+A new module can be created using the \texttt{go mod init} command. This command creates a \texttt{go.mod} file in the current directory.
+
+For example:
+
+\begin{lstlisting}
+mkdir myapp
+cd myapp
+go mod init example.com/myapp
+\end{lstlisting}
+
+The resulting \texttt{go.mod} file contains a module declaration and normally a Go language version directive. Its exact contents depend on the installed Go toolchain and the options used.
+
+A simplified example is:
+
+\begin{lstlisting}
+module example.com/myapp
+
+go 1.24
+\end{lstlisting}
+
+The module path \texttt{example.com/myapp} identifies the module. The \texttt{go} directive specifies the language version and module semantics relevant to the module.
+
+The example uses Go 1.24 as an illustrative version; a real project should specify a version appropriate to its requirements and toolchain. The module path may also be a repository path, such as one hosted on a code-sharing service.
+
+After initialisation, source files can be created in the module root and in subdirectories representing additional packages.
+
+\subsection{Relationship Between Packages and Modules}
+
+Packages and modules serve different but complementary purposes.
+
+A package groups source files that belong to a single compilation unit and defines a namespace for its declarations. A module groups related packages and defines their shared module path and dependency-management context.
+
+For example, consider the following project structure:
+
+\begin{lstlisting}
+myapp/
+    go.mod
+    main.go
+    calculator/
+        addition.go
+        subtraction.go
+    geometry/
+        rectangle.go
+\end{lstlisting}
+
+The module may be declared as:
+
+\begin{lstlisting}
+module example.com/myapp
+
+go 1.24
+\end{lstlisting}
+
+The root directory contains the \texttt{main} package, while the \texttt{calculator} and \texttt{geometry} directories contain separate packages.
+
+The package in \texttt{calculator/addition.go} could define:
+
+\begin{lstlisting}
+package calculator
+
+func Add(a, b int) int {
+    return a + b
+}
+\end{lstlisting}
+
+The application's \texttt{main.go} file could import that package:
+
+\begin{lstlisting}
+package main
+
+import (
+    "fmt"
+    "example.com/myapp/calculator"
+)
+
+func main() {
+    result := calculator.Add(10, 20)
+    fmt.Println(result)
+}
+\end{lstlisting}
+
+The import path is formed from the module path followed by the relative directory path. In this example, \texttt{example.com/myapp/calculator} identifies the package contained in the \texttt{calculator} directory.
+
+The package name is \texttt{calculator}, while the module path is \texttt{example.com/myapp}. This distinction is important because package names and module paths are related but are not interchangeable concepts.
+
+\subsection{Managing Dependencies}
+
+A Go module can depend on other modules to use their packages. Dependencies are declared and resolved through the Go module system.
+
+When a program imports an external package, the Go toolchain determines which module provides that package and resolves the required version according to the module configuration and dependency graph.
+
+For example, an application may require an external module that provides additional text-processing functionality. A dependency can be added using the \texttt{go get} command:
+
+\begin{lstlisting}
+go get golang.org/x/text
+\end{lstlisting}
+
+The command updates the module's dependency requirements as appropriate. The exact version selected depends on the existing module configuration, available versions, and the command's arguments.
+
+The \texttt{go.mod} file records module requirements, including the versions of direct dependencies. It may also contain indirect dependency requirements and replacement or exclusion directives.
+
+A simplified example is:
+
+\begin{lstlisting}
+module example.com/myapp
+
+go 1.24
+
+require golang.org/x/text v0.23.0
+\end{lstlisting}
+
+The version shown is illustrative rather than a recommendation for every project. A project should select a compatible version and maintain its dependencies according to its security and maintenance requirements.
+
+The \texttt{go.sum} file records cryptographic checksums for module content and, where applicable, module metadata. These checksums help verify that downloaded dependency content matches the content previously recorded by the Go toolchain.
+
+\subsection{The Go Module System and Version Selection}
+
+Go uses a module-aware dependency management system that selects versions of required modules according to the module graph and the minimal version selection algorithm.
+
+Unlike systems that always resolve dependencies to the newest available version, Go generally selects the minimum version of each module that satisfies the requirements represented in the module graph. This approach contributes to reproducible dependency selection.
+
+The \texttt{go.mod} file may specify a minimum required version of a dependency. The version ultimately selected can be higher if another dependency requires a higher version.
+
+For example, suppose a project requires version \texttt{v1.2.0} of a module, while another dependency requires version \texttt{v1.4.0}. The selected version will normally be \texttt{v1.4.0}, provided that the module path and other dependency constraints permit that selection.
+
+The Go toolchain provides several commands for managing dependencies:
+
+\begin{itemize}
+    \item \texttt{go get}: adds or updates module requirements.
+    \item \texttt{go mod tidy}: adds missing requirements and removes requirements that are no longer needed, taking relevant packages and build constraints into account.
+    \item \texttt{go list -m all}: lists the modules in the current build list.
+    \item \texttt{go mod download}: downloads required module content.
+    \item \texttt{go mod verify}: verifies downloaded module content against recorded checksums where applicable.
+\end{itemize}
+
+These commands help developers maintain a consistent dependency configuration throughout the development lifecycle.
+
+\subsection{Semantic Versioning and Module Paths}
+
+Go modules commonly use semantic versioning to communicate compatibility between releases. A semantic version has the general form:
+
+\[
+\text{MAJOR.MINOR.PATCH}
+\]
+
+The major component indicates potentially incompatible API changes, the minor component indicates backward-compatible functionality additions, and the patch component indicates backward-compatible bug fixes.
+
+Go applies special import-path rules to modules using major versions 2 and above. A module with a major version of 2 or higher generally includes the major version suffix in its module path, such as:
+
+\begin{lstlisting}
+module example.com/library/v2
+\end{lstlisting}
+
+A consumer imports packages from that version using paths that include the suffix:
+
+\begin{lstlisting}
+import "example.com/library/v2/parser"
+\end{lstlisting}
+
+This convention allows incompatible major versions to coexist within a dependency graph when necessary, because their import paths identify them as distinct modules.
+
+The special rules for major version suffixes are part of Go's module compatibility model. Projects should follow the module versioning guidance when publishing libraries intended for use by other developers.
+
+\subsection{Internal Packages and Restricted Imports}
+
+Go supports a directory naming convention that restricts the importability of certain packages. A directory named \texttt{internal} can contain packages that are importable only by code within the permitted parent directory tree.
+
+For example:
+
+\begin{lstlisting}
+myapp/
+    go.mod
+    main.go
+    internal/
+        config/
+            config.go
+    publicapi/
+        api.go
+\end{lstlisting}
+
+A package located at \texttt{example.com/myapp/internal/config} can be imported by packages within the permitted \texttt{example.com/myapp} tree, but not by unrelated packages outside that tree.
+
+This mechanism is useful for separating implementation details from the public API of a module. It prevents external consumers from depending directly on internal packages through ordinary imports.
+
+The restriction is enforced by the Go toolchain and is distinct from identifier visibility. An exported identifier in an internal package remains inaccessible to packages that are not permitted to import that package.
+
+\subsection{Package Initialisation}
+
+Go defines an initialisation process for package-level variables and functions. Before a package is used by the running program, its package-level variables are initialised and its \texttt{init} functions are executed according to the language's initialisation rules.
+
+An \texttt{init} function has no parameters and no return values:
+
+\begin{lstlisting}
+package config
+
+import "fmt"
+
+var defaultPort = 8080
+
+func init() {
+    fmt.Println("Configuration package initialised")
+}
+\end{lstlisting}
+
+The \texttt{init} function is executed automatically as part of package initialisation. A package may contain multiple \texttt{init} functions, including functions in different source files.
+
+Package initialisation follows dependency ordering: imported packages are initialised before the packages that import them. Within a package, variable initialisation and \texttt{init} function execution follow the rules defined by the Go specification.
+
+Although \texttt{init} functions are useful for certain forms of setup, they should be used judiciously. Excessive reliance on implicit initialisation can make program behaviour harder to follow and can introduce unexpected dependencies or side effects.
+
+\subsection{Testing Packages}
+
+Go provides built-in support for package testing through the \texttt{testing} package. Test files typically have names ending in \texttt{\_test.go} and contain functions whose names begin with \texttt{Test}, \texttt{Benchmark}, or \texttt{Fuzz}, according to the kind of test being defined.
+
+For example, a package named \texttt{calculator} may have the following test file:
+
+\begin{lstlisting}
+package calculator
+
+import "testing"
+
+func TestAdd(t *testing.T) {
+    result := Add(2, 3)
+
+    if result != 5 {
+        t.Fatalf("Add(2, 3) = %d; want 5", result)
+    }
+}
+\end{lstlisting}
+
+The test verifies that the \texttt{Add} function returns the expected result. Tests can be executed using:
+
+\begin{lstlisting}
+go test ./...
+\end{lstlisting}
+
+The pattern \texttt{./...} instructs the Go tool to discover and test packages recursively from the current directory, subject to the tool's package discovery rules.
+
+Test files may use the same package name to access unexported declarations or use a package name with the \texttt{\_test} suffix to test the package through its exported API, depending on the test design.
+
+\subsection{Building and Running a Module}
+
+Go provides a standard command-line toolchain for building, testing, and running applications. Common commands include:
+
+\begin{itemize}
+    \item \texttt{go run .}: compiles and runs the package in the current directory when it is an executable package.
+    \item \texttt{go build ./...}: builds the packages matched by the specified pattern.
+    \item \texttt{go test ./...}: tests packages throughout the current module.
+    \item \texttt{go vet ./...}: examines packages for suspicious constructs that may indicate errors.
+    \item \texttt{go list ./...}: lists packages matched by the specified pattern.
+\end{itemize}
+
+These commands operate within the module-aware environment established by the module configuration and the Go toolchain.
+
+For an executable application, \texttt{go build} can produce a binary that can be distributed and executed independently of the source code, provided that its runtime requirements are satisfied.
+
+A library module, by contrast, usually provides packages for other applications to import rather than defining a standalone executable.
+
+\subsection{Best Practices for Package and Module Design}
+
+Effective package and module design improves readability, dependency management, and long-term maintainability. The following practices are generally recommended:
+
+\begin{itemize}
+    \item Organise packages around coherent responsibilities rather than creating arbitrary collections of unrelated declarations.
+    \item Keep package APIs small and expose only the identifiers that external consumers need.
+    \item Use meaningful package names that are concise, descriptive, and easy to reference in source code.
+    \item Avoid unnecessary import dependencies and circular dependencies; Go does not permit import cycles between packages.
+    \item Use modules to define clear dependency boundaries and to manage versions reproducibly.
+    \item Keep the \texttt{go.mod} file and relevant checksum information under version control.
+    \item Run \texttt{go mod tidy} when appropriate to keep dependency requirements consistent with the source code.
+    \item Use the \texttt{internal} directory convention for implementation packages that should not be imported by external consumers.
+    \item Apply semantic versioning carefully when publishing modules, especially when introducing breaking API changes.
+    \item Write package-level documentation and automated tests to clarify intended behaviour and detect regressions.
+\end{itemize}
+
+These practices help ensure that packages remain focused and reusable, while modules provide a stable and maintainable framework for dependency management.
+
+\subsection{Conclusion}
+
+Packages and modules form the foundation of code organisation and dependency management in Go. Packages group related declarations into compilation units, provide namespaces, and control identifier visibility through the distinction between exported and unexported names. Modules group related packages under a shared module path and manage dependencies through version requirements and the Go module toolchain.
+
+The interaction between packages and modules enables Go applications to be divided into reusable components, tested independently, and distributed with explicit dependency requirements. Features such as semantic versioning, internal packages, package initialisation, and built-in testing support further contribute to the development of maintainable software.
+
+A thorough understanding of packages, import paths, module configuration, dependency selection, and versioning is essential for building reliable Go applications and libraries. By designing packages around clear responsibilities and managing modules carefully, developers can produce software that is easier to maintain, test, extend, and share.

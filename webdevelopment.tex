@@ -1,0 +1,493 @@
+\section{Support for Web Development in Go}
+
+\subsection{Introduction}
+
+Go, commonly referred to as Golang, is a statically typed, compiled programming language developed by Google. It provides comprehensive support for web development through its standard library, concurrency model, networking capabilities, third-party frameworks and deployment tooling. It is particularly suitable for developing web servers, RESTful application programming interfaces (APIs), microservices, distributed systems and high-performance backend services.\\
+
+One of Go's principal advantages is that web development does not require an external framework for fundamental HTTP functionality. The standard library includes the \texttt{net/http} package, which provides HTTP server and client implementations, request routing, middleware interfaces, cookie handling and TLS support. Additional standard packages provide JSON encoding, HTML templating, URL parsing, cryptographic operations and database interfaces.\\
+
+The principal features of Go for web development include:
+
+\begin{itemize}
+    \item \textbf{Static typing:} Type checking helps identify programming errors during compilation and improves code maintainability.
+    \item \textbf{Native compilation:} Go applications can be compiled into executable binaries for supported operating systems and processor architectures.
+    \item \textbf{Concurrency:} Goroutines and channels facilitate concurrent request processing and asynchronous operations.
+    \item \textbf{Standard-library support:} HTTP handling, JSON serialisation, HTML templating, cryptography and testing facilities are available without requiring a third-party framework.
+    \item \textbf{Performance:} Native compilation and lightweight concurrency make Go suitable for network-intensive applications.
+    \item \textbf{Deployment:} Applications can often be deployed as self-contained executables or packaged into containers.
+\end{itemize}
+
+Although Go is primarily used for backend web development, it can also generate HTML pages and serve static resources. Interactive browser-side applications are commonly implemented using JavaScript or TypeScript alongside a Go backend.\\
+
+\subsection{HTTP Servers and Request Routing}
+
+The \texttt{net/http} package provides the fundamental abstractions required to implement an HTTP server. Its principal components include:
+
+\begin{itemize}
+    \item \texttt{http.Handler}: an interface for processing HTTP requests.
+    \item \texttt{http.HandlerFunc}: an adapter that allows functions to implement the \texttt{http.Handler} interface.
+    \item \texttt{http.ResponseWriter}: an interface for constructing HTTP responses.
+    \item \texttt{http.Request}: a structure containing request information, including the HTTP method, URL, headers, body and context.
+    \item \texttt{http.ServeMux}: a router that maps incoming requests to registered handlers.
+\end{itemize}
+
+The following example demonstrates a basic HTTP server using method-aware routing, available in the standard library from Go 1.22 onwards.
+
+\begin{lstlisting}
+package main
+
+import (
+    "encoding/json"
+    "log"
+    "net/http"
+    "time"
+)
+
+func main() {
+    mux := http.NewServeMux()
+
+    mux.HandleFunc("GET /health", func(
+        w http.ResponseWriter,
+        r *http.Request,
+    ) {
+        w.Header().Set(
+            "Content-Type",
+            "application/json",
+        )
+
+        _ = json.NewEncoder(w).Encode(
+            map[string]string{
+                "status": "healthy",
+            },
+        )
+    })
+
+    mux.HandleFunc("GET /hello/{name}", func(
+        w http.ResponseWriter,
+        r *http.Request,
+    ) {
+        name := r.PathValue("name")
+
+        w.Header().Set(
+            "Content-Type",
+            "application/json",
+        )
+
+        _ = json.NewEncoder(w).Encode(
+            map[string]string{
+                "message": "Hello, " + name,
+            },
+        )
+    })
+
+    server := &http.Server{
+        Addr:              ":8080",
+        Handler:           mux,
+        ReadHeaderTimeout: 5 * time.Second,
+    }
+
+    log.Fatal(server.ListenAndServe())
+}
+\end{lstlisting}
+
+The server exposes two endpoints: \texttt{/health}, which returns a health status, and \texttt{/hello/\{name\}}, which extracts a path parameter and returns a personalised response. JSON serialisation is performed by \texttt{encoding/json}.\\
+
+The use of an explicit \texttt{http.Server} allows the developer to configure operational parameters such as connection timeouts. Production applications should also implement graceful shutdown and appropriate read, write and idle timeouts.\\
+
+\subsection{Web Frameworks and Third-Party Libraries}
+
+Although the standard library is sufficient for many applications, third-party frameworks provide additional abstractions that can accelerate development.\\
+
+Important frameworks and routing libraries include:
+
+\begin{itemize}
+    \item \textbf{Gin:} provides routing, middleware, JSON responses, request binding and validation integrations. It is commonly used to develop REST APIs.
+    \item \textbf{Echo:} offers routing, middleware, request binding, error handling and response utilities.
+    \item \textbf{Fiber:} provides an Express-inspired programming interface for developers familiar with the Node.js ecosystem.
+    \item \textbf{Chi:} provides lightweight, composable routing while retaining compatibility with Go's standard HTTP handler interfaces.
+    \item \textbf{GORM:} an object-relational mapping library that simplifies database operations and model management.
+    \item \textbf{SQLC:} generates type-safe Go code from SQL queries, reducing repetitive database-access code.
+\end{itemize}
+
+For example, Gin can be used to implement a JSON endpoint:
+
+\begin{lstlisting}
+package main
+
+import (
+    "net/http"
+
+    "github.com/gin-gonic/gin"
+)
+
+func main() {
+    router := gin.Default()
+
+    router.GET("/api/status", func(c *gin.Context) {
+        c.JSON(http.StatusOK, gin.H{
+            "status": "available",
+        })
+    })
+
+    router.Run(":8080")
+}
+\end{lstlisting}
+
+The framework provides route registration, request-context handling and JSON serialisation. Framework selection should be based on application requirements, maintenance activity, dependency policies and operational considerations rather than performance assumptions alone.\\
+
+\subsection{RESTful APIs and JSON Processing}
+
+Go supports REST-style API development through its HTTP and JSON packages. The \texttt{encoding/json} package converts Go structures into JSON and decodes JSON requests into typed structures.\\
+
+A request model can be defined as follows:
+
+\begin{lstlisting}
+type CreateUserRequest struct {
+    Name  string `json:"name"`
+    Email string `json:"email"`
+}
+\end{lstlisting}
+
+A handler can then decode and validate an incoming request:
+
+\begin{lstlisting}
+func createUser(
+    w http.ResponseWriter,
+    r *http.Request,
+) {
+    r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
+    defer r.Body.Close()
+
+    decoder := json.NewDecoder(r.Body)
+    decoder.DisallowUnknownFields()
+
+    var input CreateUserRequest
+
+    if err := decoder.Decode(&input); err != nil {
+        http.Error(
+            w,
+            "Invalid JSON request",
+            http.StatusBadRequest,
+        )
+        return
+    }
+
+    if strings.TrimSpace(input.Name) == "" ||
+        !strings.Contains(input.Email, "@") {
+        http.Error(
+            w,
+            "Invalid user details",
+            http.StatusUnprocessableEntity,
+        )
+        return
+    }
+
+    w.Header().Set(
+        "Content-Type",
+        "application/json",
+    )
+    w.WriteHeader(http.StatusCreated)
+
+    _ = json.NewEncoder(w).Encode(
+        map[string]string{
+            "message": "User accepted",
+        },
+    )
+}
+\end{lstlisting}
+
+This example requires the \texttt{encoding/json}, \texttt{net/http} and \texttt{strings} packages. It demonstrates request-size restrictions, strict JSON field handling, input validation and the use of an HTTP status code to indicate successful resource creation.\\
+
+In a production implementation, the handler should persist the user through a service or repository layer before returning a successful response. Validation should also follow the application's domain rules, and the decoder should handle trailing JSON values explicitly.\\
+
+Appropriate HTTP status codes improve interoperability between clients and servers. For example, \texttt{200 OK} indicates successful processing, \texttt{201 Created} indicates resource creation, \texttt{400 Bad Request} indicates malformed input, \texttt{401 Unauthorized} indicates an authentication problem, and \texttt{500 Internal Server Error} indicates an unexpected server-side failure.\\
+
+\subsection{Database Connectivity and Persistence}
+
+Go provides database connectivity through the \texttt{database/sql} package. This package defines common interfaces for database connections, queries, transactions, and prepared statements. A database-specific driver implements the underlying communication protocol.\\
+
+Go applications commonly integrate with PostgreSQL, MySQL, SQLite and Microsoft SQL Server. Developers can use SQL directly or adopt libraries such as GORM, Ent and SQLC.\\
+
+The following example illustrates a parameterised database query:
+
+\begin{lstlisting}
+func findUser(
+    ctx context.Context,
+    db *sql.DB,
+    id int64,
+) (string, error) {
+    ctx, cancel := context.WithTimeout(
+        ctx,
+        2*time.Second,
+    )
+    defer cancel()
+
+    var name string
+
+    err := db.QueryRowContext(
+        ctx,
+        "SELECT name FROM users WHERE id = $1",
+        id,
+    ).Scan(&name)
+
+    if err != nil {
+        return "", fmt.Errorf("find user: %w", err)
+    }
+
+    return name, nil
+}
+\end{lstlisting}
+
+This example assumes a PostgreSQL-compatible parameter marker and requires the relevant \texttt{context}, \texttt{database/sql}, \texttt{time} and \texttt{fmt} imports. The database connection must be initialised using an appropriate driver.\\
+
+The use of parameterised SQL helps prevent SQL injection. Furthermore, the request context enables cancellation when a deadline expires or the caller no longer requires the operation.\\
+
+Database access should generally be separated from HTTP handlers through service and repository layers. This improves testability and helps maintain clear boundaries between HTTP concerns, business logic and persistence.\\
+
+\subsection{Server-Side Rendering and HTML Templates}
+
+Go supports server-side rendering through the \texttt{html/template} package. Templates combine HTML markup with application data to produce complete HTML documents.\\
+
+The package provides contextual escaping to mitigate cross-site scripting vulnerabilities when rendering untrusted data. It should generally be preferred to \texttt{text/template} when generating HTML.\\
+
+For example:
+
+\begin{lstlisting}
+var page = template.Must(
+    template.New("home").Parse(`
+        <!doctype html>
+        <html lang="en">
+        <head>
+            <meta charset="utf-8">
+            <title>{{.Title}}</title>
+        </head>
+        <body>
+            <h1>{{.Title}}</h1>
+            <p>{{.Message}}</p>
+        </body>
+        </html>
+    `),
+)
+
+type PageData struct {
+    Title   string
+    Message string
+}
+
+func home(
+    w http.ResponseWriter,
+    r *http.Request,
+) {
+    w.Header().Set(
+        "Content-Type",
+        "text/html; charset=utf-8",
+    )
+
+    err := page.Execute(w, PageData{
+        Title:   "Go Web Application",
+        Message: "Welcome to the website.",
+    })
+
+    if err != nil {
+        // Log the error without exposing internals.
+        // The response may already have been written.
+        return
+    }
+}
+\end{lstlisting}
+
+Templates can be parsed during application start-up and reused across requests. They can also be organised into layouts, reusable components and partial templates.\\
+
+Go applications may combine server-rendered HTML with JavaScript or TypeScript to provide interactive browser-side functionality. This approach supports conventional multi-page applications and progressive enhancement without requiring the backend and frontend to use the same programming language.\\
+
+\subsection{Concurrency and Asynchronous Operations}
+
+Go's concurrency model is particularly valuable for web applications that perform multiple network or database operations. Goroutines are lightweight execution units managed by the Go runtime, while channels allow concurrent tasks to exchange values and coordinate their work.\\
+
+For example, two independent operations can be initiated concurrently:
+
+\begin{lstlisting}
+func fetchData(ctx context.Context) error {
+    results := make(chan error, 2)
+
+    go func() {
+        results <- queryDatabase(ctx)
+    }()
+
+    go func() {
+        results <- callRemoteService(ctx)
+    }()
+
+    for i := 0; i < 2; i++ {
+        if err := <-results; err != nil {
+            return err
+        }
+    }
+
+    return nil
+}
+\end{lstlisting}
+
+The functions \texttt{queryDatabase} and \texttt{callRemoteService} represent application-defined operations. The buffered channel permits both goroutines to report their results without immediately blocking on a receiver.\\
+
+For more complex workflows, an error-group abstraction, such as \texttt{errgroup} from \texttt{golang.org/x/sync}, can coordinate errors and cancellation. Care is required to prevent goroutine leaks, data races and excessive resource consumption.\\
+
+Effective concurrency management also requires request deadlines, bounded worker pools where appropriate, rate limiting and back-pressure. These measures help prevent a heavily loaded service from exhausting database connections or overwhelming downstream systems.\\
+
+\subsection{Middleware and Security}
+
+Middleware provides a mechanism for applying common processing to HTTP requests and responses. Typical uses include logging, authentication, authorisation, tracing, rate limiting and panic recovery.\\
+
+In Go, middleware can be implemented by wrapping an \texttt{http.Handler}:
+
+\begin{lstlisting}
+func loggingMiddleware(
+    next http.Handler,
+) http.Handler {
+    return http.HandlerFunc(func(
+        w http.ResponseWriter,
+        r *http.Request,
+    ) {
+        start := time.Now()
+
+        next.ServeHTTP(w, r)
+
+        log.Printf(
+            "method=%s path=%s duration=%s",
+            r.Method,
+            r.URL.Path,
+            time.Since(start),
+        )
+    })
+}
+\end{lstlisting}
+
+This example requires the \texttt{net/http}, \texttt{log} and \texttt{time} packages. The middleware records request information before and after the downstream handler executes.\\
+
+Production implementations should avoid logging passwords, access tokens, session identifiers or sensitive query parameters. Additional middleware may enforce authentication, authorisation and request limits.\\
+
+Security controls for Go web applications should include:
+
+\begin{itemize}
+    \item TLS encryption for network communications.
+    \item Strong authentication and server-side authorisation.
+    \item Parameterised database queries.
+    \item Appropriate cross-origin resource sharing (CORS) policies.
+    \item Cross-site request forgery (CSRF) protection when required by the authentication model.
+    \item Secure cookie attributes and appropriate session management.
+    \item Request validation, body-size limits and server timeouts.
+    \item Dependency auditing, security updates and automated testing.
+\end{itemize}
+
+Go provides cryptographic packages, secure HTML templating and fuzz testing facilities. However, these capabilities do not automatically guarantee application security; developers must apply suitable security policies and validate their implementation.\\
+
+\subsection{Testing, Debugging and Performance Analysis}
+
+Go includes an integrated testing framework through the \texttt{testing} package. HTTP handlers can be tested without starting a network listener by using \texttt{httptest.NewRequest} and \texttt{httptest.ResponseRecorder}.\\
+
+For example:
+
+\begin{lstlisting}
+func TestHealth(t *testing.T) {
+    handler := http.HandlerFunc(func(
+        w http.ResponseWriter,
+        r *http.Request,
+    ) {
+        w.WriteHeader(http.StatusOK)
+        _, _ = w.Write([]byte("OK"))
+    })
+
+    req := httptest.NewRequest(
+        http.MethodGet,
+        "/health",
+        nil,
+    )
+    rec := httptest.NewRecorder()
+
+    handler.ServeHTTP(rec, req)
+
+    if rec.Code != http.StatusOK {
+        t.Fatalf(
+            "got status %d, want %d",
+            rec.Code,
+            http.StatusOK,
+        )
+    }
+
+    if rec.Body.String() != "OK" {
+        t.Fatalf(
+            "got body %q, want %q",
+            rec.Body.String(),
+            "OK",
+        )
+    }
+}
+\end{lstlisting}
+
+The example requires the \texttt{net/http}, \texttt{net/http/httptest} and \texttt{testing} packages.
+
+The Go toolchain also supports:
+
+\begin{itemize}
+    \item \texttt{go test}: executes unit and integration tests.
+    \item \texttt{go test -race}: detects many data races during execution.
+    \item \texttt{go test -bench=.}: executes benchmarks matching the specified pattern.
+    \item \texttt{go test -cover}: reports statement coverage.
+    \item \texttt{go vet}: identifies suspicious code patterns.
+    \item \texttt{net/http/pprof}: provides CPU, memory and goroutine profiling facilities.
+\end{itemize}
+
+These facilities support systematic verification, performance analysis and diagnosis of concurrency-related problems. Benchmarks should reflect realistic workloads, and performance should be measured under representative operating conditions.
+
+\subsection{Deployment and Integration}
+
+Go web applications can be deployed on virtual machines, container platforms, Kubernetes clusters and managed cloud services. The compiler supports producing executables for multiple operating systems and processor architectures.\\
+
+A typical project can be initialised, tested and compiled using the following commands:
+
+\begin{lstlisting}
+go mod init example.com/webapp
+go mod tidy
+go test ./...
+go build -o webapp .
+\end{lstlisting}
+
+Go modules provide dependency management and version tracking. The resulting executable can be copied into a deployment image, provided that required configuration, static assets, certificates and other resources are also supplied.\\
+
+Production deployments should consider:
+
+\begin{itemize}
+    \item External configuration and secure secret management.
+    \item Graceful shutdown and connection draining.
+    \item Health and readiness endpoints.
+    \item Structured logging, metrics and distributed tracing.
+    \item Container resource limits and non-root execution.
+    \item Automated testing and dependency vulnerability scanning.
+\end{itemize}
+
+Go can also integrate with message brokers, caching systems, identity providers, cloud SDKs and observability platforms, making it suitable for distributed service architectures.\\
+
+\subsection{Advantages and Limitations}
+
+The main advantages of Go for web development are its straightforward language design, built-in HTTP support, concurrency facilities, static typing and relatively simple deployment model. The standard library is sufficient for many services, while third-party libraries can provide additional functionality when required.\\
+
+Nevertheless, some limitations should be considered:
+
+\begin{itemize}
+    \item \textbf{Frontend development:} Go is not a mainstream replacement for JavaScript or TypeScript in modern browsers.
+    \item \textbf{Framework conventions:} Developers often need to select and integrate separate libraries for validation, authentication and database mapping.
+    \item \textbf{Concurrency complexity:} Goroutines do not eliminate deadlocks, race conditions or resource exhaustion.
+    \item \textbf{Garbage collection:} Memory management is convenient, but garbage collection can influence latency and memory usage.
+    \item \textbf{Library selection:} Third-party packages vary in maturity, maintenance and security posture.
+\end{itemize}
+
+These limitations do not prevent Go from supporting sophisticated web systems, but they emphasise the importance of appropriate architectural design and dependency selection.
+
+\subsection{Conclusion}
+
+Go provides extensive support for backend web development through its standard HTTP server, routing mechanisms, JSON processing, HTML templating, database interfaces, and concurrency primitives. Its ecosystem supports both lightweight HTTP services and framework-based applications, while integrated testing and profiling tools help maintain reliability and performance.\\
+
+Go is particularly well suited to REST APIs, microservices, distributed applications and network-intensive services. For applications requiring sophisticated browser-side interactions, it can be combined with a dedicated frontend technology. Overall, Go is a strong choice for web development where maintainability, operational simplicity, concurrency, and efficient network programming are important objectives.
+
+
+

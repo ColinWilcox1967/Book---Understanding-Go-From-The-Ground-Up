@@ -1,0 +1,664 @@
+\section{Structured Programming and Structures}
+
+Structured programming is a programming paradigm that organises programs into well-defined control structures, procedures, and logical components. Its principal objective is to improve program clarity, correctness, maintainability, and modularity by reducing unnecessary complexity and promoting predictable execution. The Go programming language supports structured programming through sequential execution, conditional statements, iteration, functions, and composite data types, including structures declared using the \texttt{struct} keyword.
+
+In Go, structures provide a mechanism for grouping related data fields under a single user-defined type. They allow developers to represent entities such as employees, products, customers, and geometric objects by combining values of different types into one logical unit. When structures are used alongside functions, methods, interfaces, and packages, they contribute to the development of modular and maintainable software systems.
+
+This section describes the fundamental principles of structured programming, the role of structures in Go, their declaration and initialisation, field access, methods, composition, and their application in software development.
+
+\subsection{Principles of Structured Programming}
+
+Structured programming is based on organising program execution through a small set of well-defined control structures. These structures make the flow of execution easier to understand and reason about.
+
+The principal control structures are sequence, selection, and iteration.
+
+\subsubsection{Sequence}
+
+Sequence refers to the execution of statements in the order in which they appear in a program. Each statement performs an operation before execution proceeds to the next statement.
+
+For example:
+
+\begin{lstlisting}
+package main
+
+import "fmt"
+
+func main() {
+    a := 10
+    b := 20
+    result := a + b
+
+    fmt.Println(result)
+}
+\end{lstlisting}
+
+The program declares two variables, calculates their sum, and displays the result. Each operation is executed sequentially.
+
+\subsubsection{Selection}
+
+Selection allows a program to choose between alternative execution paths according to a condition. Go provides the \texttt{if}, \texttt{if-else}, and \texttt{switch} statements for this purpose.
+
+\begin{lstlisting}
+age := 20
+
+if age >= 18 {
+    fmt.Println("Adult")
+} else {
+    fmt.Println("Minor")
+}
+\end{lstlisting}
+
+The condition determines which block is executed. This makes the programme's decision-making logic explicit and easier to maintain.
+
+\subsubsection{Iteration}
+
+Iteration allows a sequence of statements to be repeated while a specified condition holds or for each element in a collection. Go provides the \texttt{for} statement as its principal looping construct.
+
+\begin{lstlisting}
+for i := 1; i <= 5; i++ {
+    fmt.Println(i)
+}
+\end{lstlisting}
+
+The loop executes five times, displaying the integers from one to five. Go also supports condition-based loops and iteration over arrays, slices, maps, strings, and other supported data sources.
+
+\subsubsection{Functions and Modularisation}
+
+Functions allow related operations to be grouped into reusable units. A function can accept parameters, perform computations, and return results. Dividing a programme into functions reduces duplication and makes individual operations easier to test and maintain.
+
+\begin{lstlisting}
+func calculateArea(width, height float64) float64 {
+    return width * height
+}
+\end{lstlisting}
+
+The function encapsulates the calculation of a rectangular area. Its implementation can be reused wherever the same calculation is required.
+
+Structured programming encourages functions to have clear responsibilities, well-defined inputs and outputs, and limited dependence on unrelated parts of the programme.
+
+\subsection{Structured Programming in Go}
+
+Go provides direct language support for structured programming. Its syntax emphasises explicit control flow, straightforward function definitions, and clear data declarations. These characteristics encourage programmes to be organised into manageable components.
+
+A Go programme commonly consists of packages containing functions, types, variables, and constants. The \texttt{main} package provides the entry point of an executable application through its \texttt{main} function.
+
+For example:
+
+\begin{lstlisting}
+package main
+
+import "fmt"
+
+func calculateTotal(price, quantity float64) float64 {
+    return price * quantity
+}
+
+func main() {
+    price := 12.50
+    quantity := 4.0
+
+    total := calculateTotal(price, quantity)
+    fmt.Println("Total:", total)
+}
+\end{lstlisting}
+
+The programme separates the calculation from the entry-point logic. The \texttt{calculateTotal} function performs a specific operation, while \texttt{main} coordinates the execution.
+
+Although structured programming primarily concerns control flow and modular organisation, effective software development also requires appropriate data modelling. Structures provide one of Go's principal mechanisms for representing related information.
+
+\subsection{Structures in Go}
+
+A structure, declared using the \texttt{struct} keyword, is a composite data type that groups a collection of named fields into a single value. Each field has a name and a type, and different fields within the same structure may have different types.
+
+Structures are useful when several related values collectively describe one logical entity. For example, an employee record might contain an identifier, a name, a department, and a salary.
+
+The general syntax of a structure declaration is:
+
+\begin{lstlisting}
+type TypeName struct {
+    FieldName1 FieldType1
+    FieldName2 FieldType2
+}
+\end{lstlisting}
+
+The \texttt{type} declaration introduces a named type, while the \texttt{struct} definition specifies its fields.
+
+For example:
+
+\begin{lstlisting}
+type Employee struct {
+    ID         int
+    Name       string
+    Department string
+    Salary     float64
+}
+\end{lstlisting}
+
+The \texttt{Employee} type contains four fields. The \texttt{ID} field is an integer, the \texttt{Name} and \texttt{Department} fields are strings, and the \texttt{Salary} field is a floating-point number.
+
+Each value of type \texttt{Employee} contains its own values for these fields.
+
+\subsection{Declaring and Initialising Structures}
+
+Once a structure type has been declared, variables of that type can be created using variable declarations, composite literals, or pointers.
+
+\subsubsection{Variable Declaration}
+
+A structure variable can be declared without explicitly assigning initial values.
+
+\begin{lstlisting}
+var employee Employee
+\end{lstlisting}
+
+In this case, each field receives the zero value of its respective type. Integer fields are initialised to zero, string fields to the empty string, and floating-point fields to zero.
+
+For example:
+
+\begin{lstlisting}
+fmt.Println(employee.ID)         // 0
+fmt.Println(employee.Name)       // ""
+fmt.Println(employee.Department) // ""
+fmt.Println(employee.Salary)     // 0
+\end{lstlisting}
+
+This behaviour ensures that a declared structure value has defined initial field values, although these values may not represent a valid business entity.
+
+\subsubsection{Initialisation Using Composite Literals}
+
+A composite literal allows a structure to be initialised by specifying values for its fields.
+
+\begin{lstlisting}
+employee := Employee{
+    ID:         101,
+    Name:       "Alice Smith",
+    Department: "Engineering",
+    Salary:     45000.00,
+}
+\end{lstlisting}
+
+This form is generally preferred because the field names make the initialisation explicit and reduce the risk of assigning values to the wrong fields.
+
+Go also permits positional initialisation, in which values are supplied in the order in which fields are declared.
+
+\begin{lstlisting}
+employee := Employee{
+    101,
+    "Alice Smith",
+    "Engineering",
+    45000.00,
+}
+\end{lstlisting}
+
+When positional initialisation is used, values must be supplied in the correct order, and all fields must be represented. Keyed composite literals are generally more maintainable when structures contain several fields.
+
+\subsubsection{Anonymous Structure Types}
+
+Go allows a structure to be declared without introducing a named type.
+
+\begin{lstlisting}
+person := struct {
+    Name string
+    Age  int
+}{
+    Name: "James",
+    Age:  30,
+}
+\end{lstlisting}
+
+This declaration creates a value of an anonymous structure type. Anonymous structures are useful for temporary data representations, test fixtures, and local values that do not require a separately declared named type.
+
+\subsection{Accessing and Modifying Structure Fields}
+
+The fields of a structure are accessed using the dot operator. This operator identifies a particular field belonging to a structure value.
+
+\begin{lstlisting}
+employee := Employee{
+    ID:         101,
+    Name:       "Alice Smith",
+    Department: "Engineering",
+    Salary:     45000.00,
+}
+
+fmt.Println(employee.Name)
+fmt.Println(employee.Salary)
+\end{lstlisting}
+
+Field values can also be modified through assignment.
+
+\begin{lstlisting}
+employee.Salary = 48000.00
+employee.Department = "Research"
+
+fmt.Println(employee.Salary)
+fmt.Println(employee.Department)
+\end{lstlisting}
+
+These assignments update the specified fields of the existing structure value.
+
+Go does not require explicit accessor methods for ordinary field access. However, fields can be made inaccessible outside their defining package by using unexported field names, which begin with a lower-case letter.
+
+For example:
+
+\begin{lstlisting}
+type Account struct {
+    Owner   string
+    balance float64
+}
+\end{lstlisting}
+
+The \texttt{Owner} field is exported, whereas \texttt{balance} is unexported. Code in another package cannot access \texttt{balance} directly. This mechanism helps a package control how its data is accessed and modified.
+
+\subsection{Structures and Value Semantics}
+
+Structure values in Go have value semantics. Assigning one structure variable to another copies the structure's field values.
+
+\begin{lstlisting}
+first := Employee{
+    ID:   101,
+    Name: "Alice",
+}
+
+second := first
+second.Name = "Bob"
+
+fmt.Println(first.Name)  // Alice
+fmt.Println(second.Name) // Bob
+\end{lstlisting}
+
+Changing the \texttt{Name} field of \texttt{second} does not modify the corresponding field of \texttt{first}, because the two variables contain separate structure values.
+
+However, a structure may contain reference-like fields, such as slices, maps, pointers, or interfaces containing reference-like values. Copying such a structure copies those fields according to their normal semantics; it does not necessarily duplicate the data to which they refer.
+
+For example:
+
+\begin{lstlisting}
+type Group struct {
+    Members []string
+}
+
+first := Group{
+    Members: []string{"Alice", "Bob"},
+}
+
+second := first
+second.Members[0] = "Carol"
+
+fmt.Println(first.Members[0]) // Carol
+\end{lstlisting}
+
+Both structure values contain slice descriptors that refer to the same underlying array. Consequently, modifying an element through one slice may be visible through the other.
+
+This distinction is important when designing data models that require either independent copies or shared mutable state.
+
+\subsection{Pointers to Structures}
+
+A pointer to a structure stores the address of a structure value rather than a separate copy of the entire structure. Pointers are useful when a function must modify an existing structure or when copying a large structure would be undesirable.
+
+A pointer can be obtained using the address-of operator, \texttt{\&}.
+
+\begin{lstlisting}
+employee := Employee{
+    ID:   101,
+    Name: "Alice",
+}
+
+employeePointer := &employee
+employeePointer.Name = "Carol"
+
+fmt.Println(employee.Name) // Carol
+\end{lstlisting}
+
+Go automatically permits field access through a pointer to a structure. Thus, \texttt{employeePointer.Name} is shorthand for accessing the \texttt{Name} field through the pointed-to value.
+
+A pointer can also be created using a composite literal:
+
+\begin{lstlisting}
+employeePointer := &Employee{
+    ID:         102,
+    Name:       "David",
+    Department: "Finance",
+    Salary:     42000.00,
+}
+\end{lstlisting}
+
+Pointers to structures are commonly used in functions and methods when modifications must affect the original value.
+
+\subsection{Functions Operating on Structures}
+
+Structures can be passed to functions as parameters and returned as results. This makes them useful for exchanging related information between different programme components.
+
+\subsubsection{Passing a Structure by Value}
+
+When a structure is passed as a function argument, its value is copied.
+
+\begin{lstlisting}
+func displayEmployee(employee Employee) {
+    fmt.Println(employee.Name)
+    fmt.Println(employee.Department)
+}
+\end{lstlisting}
+
+The function receives a copy of the supplied structure. Modifying a field of the parameter does not directly modify the caller's structure value.
+
+\subsubsection{Passing a Pointer to a Structure}
+
+When a function must modify the caller's structure, it can accept a pointer.
+
+\begin{lstlisting}
+func increaseSalary(employee *Employee, amount float64) {
+    employee.Salary += amount
+}
+\end{lstlisting}
+
+The function can modify the original structure through the pointer.
+
+For example:
+
+\begin{lstlisting}
+employee := Employee{
+    Name:   "Alice",
+    Salary: 45000.00,
+}
+
+increaseSalary(&employee, 3000.00)
+
+fmt.Println(employee.Salary) // 48000
+\end{lstlisting}
+
+The use of a pointer makes the intention to modify the existing value explicit. It also avoids copying the entire structure when a large structure is passed to the function, although the performance impact depends on the application and compiler optimisations.
+
+\subsection{Methods Associated with Structures}
+
+Go supports methods, which are functions associated with a receiver type. Methods are commonly defined on named structure types, allowing operations to be organised alongside the data they manipulate.
+
+A method declaration includes a receiver parameter between the \texttt{func} keyword and the method name.
+
+\begin{lstlisting}
+type Rectangle struct {
+    Width  float64
+    Height float64
+}
+
+func (r Rectangle) Area() float64 {
+    return r.Width * r.Height
+}
+\end{lstlisting}
+
+The \texttt{Area} method calculates the area of a rectangle using its width and height.
+
+It can be invoked using method-call syntax:
+
+\begin{lstlisting}
+rectangle := Rectangle{
+    Width:  10,
+    Height: 5,
+}
+
+fmt.Println(rectangle.Area()) // 50
+\end{lstlisting}
+
+The receiver \texttt{r} identifies the value on which the method operates. In this example, the receiver is passed by value, so the method receives a copy of the structure.
+
+\subsubsection{Value Receivers and Pointer Receivers}
+
+Go methods may use either value receivers or pointer receivers.
+
+A value receiver receives a copy of the receiver value. It is suitable when the method only needs to inspect the structure or when value semantics are appropriate.
+
+A pointer receiver receives a pointer to the original value. It is appropriate when the method must modify the receiver or avoid copying a potentially large structure.
+
+\begin{lstlisting}
+func (r *Rectangle) Resize(
+    width, height float64,
+) {
+    r.Width = width
+    r.Height = height
+}
+\end{lstlisting}
+
+The method can modify the original rectangle:
+
+\begin{lstlisting}
+rectangle := Rectangle{
+    Width:  10,
+    Height: 5,
+}
+
+rectangle.Resize(20, 10)
+
+fmt.Println(rectangle.Area()) // 200
+\end{lstlisting}
+
+When the value is addressable, Go permits the method to be called using the value expression \texttt{rectangle.Resize(...)}. The compiler automatically takes its address where appropriate.
+
+A consistent receiver choice is generally advisable for methods belonging to the same type, particularly when some methods modify the receiver.
+
+\subsection{Structure Composition and Embedding}
+
+Go supports composition through structure fields. Rather than relying on class-based inheritance, Go allows one structure to contain another structure as a field. This makes relationships between data types explicit and encourages reusable components.
+
+For example:
+
+\begin{lstlisting}
+type Address struct {
+    Street string
+    City   string
+    Postcode string
+}
+
+type Customer struct {
+    ID      int
+    Name    string
+    Address Address
+}
+\end{lstlisting}
+
+The \texttt{Customer} structure contains an \texttt{Address} field of type \texttt{Address}. The address can be accessed through the containing structure.
+
+\begin{lstlisting}
+customer := Customer{
+    ID:   1,
+    Name: "Alice",
+    Address: Address{
+        Street:   "10 High Street",
+        City:     "Manchester",
+        Postcode: "M1 1AA",
+    },
+}
+
+fmt.Println(customer.Address.City)
+\end{lstlisting}
+
+Go also supports anonymous field embedding, which allows a named type to be embedded in another structure.
+
+\begin{lstlisting}
+type Person struct {
+    Name string
+    Age  int
+}
+
+type EmployeeRecord struct {
+    Person
+    EmployeeID int
+}
+\end{lstlisting}
+
+The embedded \texttt{Person} type promotes its eligible fields and methods, allowing them to be accessed through the containing structure.
+
+\begin{lstlisting}
+employee := EmployeeRecord{
+    Person: Person{
+        Name: "Alice",
+        Age:  25,
+    },
+    EmployeeID: 101,
+}
+
+fmt.Println(employee.Name)
+fmt.Println(employee.EmployeeID)
+\end{lstlisting}
+
+Embedding provides convenient field and method promotion, but it does not establish class-based inheritance. The containing structure still has its own distinct type and can define additional fields and methods.
+
+\subsection{Structure Tags}
+
+Structure fields can include tags, which are string metadata associated with individual fields. Tags are commonly used by libraries that perform serialisation, deserialisation, validation, or database mapping.
+
+For example:
+
+\begin{lstlisting}
+type User struct {
+    ID    int    `json:"id"`
+    Name  string `json:"name"`
+    Email string `json:"email"`
+}
+\end{lstlisting}
+
+The tags specify the JSON field names to be used by the \texttt{encoding/json} package.
+
+A structure can be encoded as JSON as follows:
+
+\begin{lstlisting}
+user := User{
+    ID:    1,
+    Name:  "Alice",
+    Email: "alice@example.com",
+}
+
+data, err := json.Marshal(user)
+if err != nil {
+    log.Fatal(err)
+}
+
+fmt.Println(string(data))
+\end{lstlisting}
+
+The resulting JSON representation uses the field names specified by the tags. This is useful when the naming conventions of an external data format differ from those used in Go source code.
+
+Structure tags do not automatically enforce validation or modify field-access rules. Their interpretation depends on the package or library that reads them.
+
+\subsection{Structure Comparability}
+
+Whether two structure values can be compared using the equality operator depends on the comparability of their field types. A structure is comparable if all its fields are comparable.
+
+For example:
+
+\begin{lstlisting}
+type Point struct {
+    X int
+    Y int
+}
+
+first := Point{X: 10, Y: 20}
+second := Point{X: 10, Y: 20}
+
+fmt.Println(first == second) // true
+\end{lstlisting}
+
+The comparison returns \texttt{true} because the corresponding integer fields have equal values.
+
+However, a structure containing a slice field is not comparable using \texttt{==}, because slices are not comparable.
+
+\begin{lstlisting}
+type Data struct {
+    Values []int
+}
+
+// Comparing two Data values with == is invalid.
+\end{lstlisting}
+
+When equality of such structures is required, the application must define an appropriate comparison operation or use a suitable library function.
+
+\subsection{Structures and Interfaces}
+
+Structures can participate in Go's interface system by implementing the methods required by an interface. Go uses implicit interface implementation, meaning that a type does not need to declare explicitly that it implements an interface.
+
+For example:
+
+\begin{lstlisting}
+type Shape interface {
+    Area() float64
+}
+
+type Circle struct {
+    Radius float64
+}
+
+func (c Circle) Area() float64 {
+    return 3.141592653589793 *
+        c.Radius * c.Radius
+}
+\end{lstlisting}
+
+The \texttt{Circle} type implements the \texttt{Shape} interface because it provides the required \texttt{Area} method with the appropriate signature.
+
+A function can then operate on any value that satisfies the interface.
+
+\begin{lstlisting}
+func printArea(shape Shape) {
+    fmt.Println(shape.Area())
+}
+
+func main() {
+    circle := Circle{Radius: 5}
+    printArea(circle)
+}
+\end{lstlisting}
+
+This design separates the operations expected by the function from the concrete structure used to perform them. It is useful for extensible systems in which several different types must provide a common set of behaviours.
+
+\subsection{Encapsulation and Data Integrity}
+
+Structures provide a mechanism for grouping related data, but declaring a structure does not by itself guarantee that its fields contain valid values. Data integrity must be maintained through appropriate design and validation.
+
+For example, an account balance may be required to remain non-negative. A structure can keep the balance field unexported and expose methods that enforce the relevant rules.
+
+\begin{lstlisting}
+type Account struct {
+    owner   string
+    balance float64
+}
+
+func (a *Account) Deposit(amount float64) bool {
+    if amount <= 0 {
+        return false
+    }
+
+    a.balance += amount
+    return true
+}
+\end{lstlisting}
+
+The method rejects non-positive deposit amounts and modifies the balance only when the input is valid.
+
+This approach supports encapsulation by restricting direct access to the balance field from other packages. The design can be extended with methods for withdrawals, balance queries, and other account operations.
+
+In Go, encapsulation is primarily achieved through package boundaries and identifier visibility rather than through class-level access modifiers.
+
+\subsection{Best Practices for Using Structures}
+
+Structures should be designed around meaningful concepts and responsibilities. Each structure should represent a coherent collection of related data, rather than an arbitrary aggregation of unrelated fields.
+
+The following practices are generally useful:
+
+\begin{itemize}
+    \item Use descriptive type and field names that communicate the meaning of the data.
+    \item Prefer keyed composite literals when initialising structures with several fields.
+    \item Use pointer receivers when methods need to modify the receiver or when avoiding copies is appropriate.
+    \item Keep fields unexported when direct modification would violate important invariants.
+    \item Use composition and embedding to reuse data representations without introducing unnecessary inheritance-like hierarchies.
+    \item Choose value and pointer semantics deliberately, particularly when structures contain slices, maps, or pointers.
+    \item Apply structure tags where required by serialisation or other reflection-based libraries.
+    \item Validate external input before storing it in structures that represent application state.
+\end{itemize}
+
+These practices help ensure that structures remain understandable, reusable, and suitable for long-term maintenance.
+
+\subsection{Conclusion}
+
+Structured programming organises software through sequence, selection, iteration, and functions, providing a foundation for clear control flow and modular program design. Go supports these principles through a concise set of language constructs and encourages developers to divide complex applications into smaller, well-defined components.
+
+Structures complement structured programming by providing a means of modelling related data as named composite types. They support field access, value copying, pointers, methods, composition, embedding, metadata tags, and implicit interface implementation. These features enable Go programmes to represent real-world entities and organise data alongside the operations associated with it.
+
+A thorough understanding of structures and their interactions with functions, pointers, methods, and interfaces is essential for developing reliable Go software. When combined with clear control flow and appropriate package organisation, structures provide a practical foundation for building maintainable, testable, and extensible applications.
+

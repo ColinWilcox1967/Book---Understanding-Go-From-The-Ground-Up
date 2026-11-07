@@ -1,0 +1,538 @@
+\section{Control Flow in the Go Programming Language}
+
+Control flow refers to the order in which statements are executed
+during program execution. In the Go programming language, control
+flow constructs determine how a program makes decisions, repeats
+operations, selects among alternatives, and transfers execution
+between different parts of a program. Go provides structured
+control flow mechanisms, including conditional statements, loops,
+switch statements, deferred function calls, and control transfer
+statements.
+
+These constructs enable developers to implement algorithms,
+manage program state, handle exceptional run-time situations, and
+express complex computational logic in a clear and maintainable
+manner. Go does not provide a conventional \texttt{while} loop;
+instead, iteration is implemented using the versatile
+\texttt{for} statement.
+
+\subsection{Conditional Statements}
+
+Conditional statements allow a program to select which statements
+to execute according to the evaluation of a Boolean expression.
+Go provides the \texttt{if}, \texttt{else if}, and \texttt{else}
+constructs for conditional execution. The condition specified
+in an \texttt{if} statement must evaluate to a Boolean value.
+
+The general syntax is as follows:
+
+\begin{lstlisting}
+if condition {
+    // Statements executed when condition is true
+} else if anotherCondition {
+    // Statements executed when anotherCondition is true
+} else {
+    // Statements executed when all preceding conditions are false
+}
+\end{lstlisting}
+
+The conditions are evaluated sequentially. When a condition
+evaluates to \texttt{true}, its associated block is executed,
+and the remaining branches are skipped. The \texttt{else} branch
+is optional and provides an alternative execution path when no
+preceding condition is satisfied.
+
+For example:
+
+\begin{lstlisting}
+package main
+
+import "fmt"
+
+func main() {
+    score := 75
+
+    if score >= 80 {
+        fmt.Println("Distinction")
+    } else if score >= 60 {
+        fmt.Println("Pass")
+    } else {
+        fmt.Println("Fail")
+    }
+}
+\end{lstlisting}
+
+In this example, the value of \texttt{score} determines which
+message is displayed. Since the score is 75, the second
+conditional branch is executed.
+
+Go also supports an initialisation statement within an
+\texttt{if} statement. A variable declared in this statement
+is scoped to the conditional statement, including its
+associated \texttt{else} branches.
+
+\begin{lstlisting}
+if value := calculate(); value > 0 {
+    fmt.Println("Positive value")
+} else {
+    fmt.Println("Zero or negative value")
+}
+\end{lstlisting}
+
+This feature allows temporary variables to be declared close
+to the conditions in which they are used, thereby improving
+encapsulation and reducing unnecessary scope.
+
+\subsection{The \texttt{switch} Statement}
+
+The \texttt{switch} statement provides a structured mechanism
+for selecting one execution path from several alternatives.
+It can be used when a variable or expression must be compared
+against multiple possible values. Unlike a long sequence of
+conditional statements, a \texttt{switch} statement can make
+multi-way selection easier to read and maintain.
+
+A general expression switch has the following form:
+
+\begin{lstlisting}
+switch expression {
+case value1:
+    // Statements for value1
+case value2:
+    // Statements for value2
+default:
+    // Statements when no case matches
+}
+\end{lstlisting}
+
+Go evaluates the switch expression and compares its value
+against the expressions in the \texttt{case} clauses. The
+statements associated with the first matching case are
+executed. The \texttt{default} clause is optional and is
+executed when no case matches.
+
+For example:
+
+\begin{lstlisting}
+package main
+
+import "fmt"
+
+func main() {
+    day := 3
+
+    switch day {
+    case 1:
+        fmt.Println("Monday")
+    case 2:
+        fmt.Println("Tuesday")
+    case 3:
+        fmt.Println("Wednesday")
+    default:
+        fmt.Println("Unknown day")
+    }
+}
+\end{lstlisting}
+
+The output is \texttt{Wednesday}, because the value of
+\texttt{day} matches the third case.
+
+Go does not automatically fall through from one case to
+the next. Each case normally terminates after its statements
+have executed. Explicit fall-through behaviour can be
+requested using the \texttt{fallthrough} statement, which
+transfers execution to the next case's statements without
+evaluating that case's expressions.
+
+A switch statement can also omit its expression. In this
+form, each case is evaluated as a Boolean condition, making
+the construct similar to a sequence of conditional branches.
+
+\begin{lstlisting}
+temperature := 28
+
+switch {
+case temperature < 0:
+    fmt.Println("Freezing conditions")
+case temperature < 20:
+    fmt.Println("Cool conditions")
+default:
+    fmt.Println("Warm conditions")
+}
+\end{lstlisting}
+
+This form is useful when different conditions must be evaluated
+rather than comparing one expression against a set of values.
+
+\subsection{The \texttt{for} Loop}
+
+The \texttt{for} statement is Go's principal iteration
+construct. It supports repeated execution of a block of
+statements and can represent conventional counter-controlled
+loops, condition-controlled loops, and infinite loops.
+Go does not have separate \texttt{while} or \texttt{do-while}
+statements.
+
+\subsubsection{Traditional Three-Clause Loop}
+
+A three-clause \texttt{for} loop contains an initialisation
+statement, a Boolean condition, and a post statement. Its
+general structure is:
+
+\begin{lstlisting}
+for initialisation; condition; post {
+    // Repeated statements
+}
+\end{lstlisting}
+
+The initialisation statement executes once before the loop
+begins. Before each iteration, the condition is evaluated.
+If it is true, the loop body executes, followed by the post
+statement. The process continues until the condition evaluates
+to \texttt{false}.
+
+For example:
+
+\begin{lstlisting}
+for i := 0; i < 5; i++ {
+    fmt.Println(i)
+}
+\end{lstlisting}
+
+This loop prints the integers from 0 to 4. The variable
+\texttt{i} is initialised to zero, the condition checks
+whether it is less than five, and the increment statement
+increases its value after each iteration.
+
+\subsubsection{Condition-Only Loop}
+
+A \texttt{for} statement can contain only a condition,
+providing functionality similar to a conventional
+\texttt{while} loop.
+
+\begin{lstlisting}
+count := 5
+
+for count > 0 {
+    fmt.Println(count)
+    count--
+}
+\end{lstlisting}
+
+The loop continues while \texttt{count} is greater than zero.
+When the condition becomes false, execution proceeds to the
+statement following the loop.
+
+\subsubsection{Infinite Loop}
+
+An infinite loop is created by omitting the condition and
+the other clauses from the \texttt{for} statement.
+
+\begin{lstlisting}
+for {
+    // Repeated operations
+}
+\end{lstlisting}
+
+Such loops are useful in server processes, event-processing
+systems, and applications that must continue running until
+an explicit termination condition is encountered. They
+should include an appropriate mechanism for terminating
+execution when required.
+
+\subsubsection{Iteration Using \texttt{range}}
+
+The \texttt{range} clause allows iteration over supported
+data structures, including arrays, slices, strings, maps,
+and channels. It provides a convenient way to access
+elements or values without manually managing an index.
+
+For example, iteration over a slice can be implemented as
+follows:
+
+\begin{lstlisting}
+numbers := []int{10, 20, 30, 40}
+
+for index, value := range numbers {
+    fmt.Println(index, value)
+}
+\end{lstlisting}
+
+In this example, \texttt{index} represents the element's
+index, while \texttt{value} represents the corresponding
+element. The loop executes once for each element in the
+slice.
+
+If only the element value is required, the index can be
+discarded using the blank identifier:
+
+\begin{lstlisting}
+for _, value := range numbers {
+    fmt.Println(value)
+}
+\end{lstlisting}
+
+The exact behaviour of \texttt{range} depends on the
+underlying data structure. For example, ranging over a map
+does not guarantee a particular iteration order, while
+ranging over a channel receives values until the channel
+is closed.
+
+\subsection{Control Transfer Statements}
+
+Control transfer statements alter the normal sequential
+execution of a program. Go provides \texttt{break},
+\texttt{continue}, \texttt{goto}, and \texttt{return} for
+different forms of control transfer.
+
+\subsubsection{The \texttt{break} Statement}
+
+The \texttt{break} statement terminates the innermost
+enclosing \texttt{for}, \texttt{switch}, or \texttt{select}
+statement, unless a label identifies another enclosing
+construct that can be terminated.
+
+For example:
+
+\begin{lstlisting}
+for i := 0; i < 10; i++ {
+    if i == 5 {
+        break
+    }
+    fmt.Println(i)
+}
+\end{lstlisting}
+
+The loop terminates when \texttt{i} reaches five. Therefore,
+the values from zero to four are printed.
+
+\subsubsection{The \texttt{continue} Statement}
+
+The \texttt{continue} statement skips the remaining statements
+in the current iteration of the innermost enclosing
+\texttt{for} loop and proceeds to the next iteration.
+
+\begin{lstlisting}
+for i := 1; i <= 5; i++ {
+    if i == 3 {
+        continue
+    }
+    fmt.Println(i)
+}
+\end{lstlisting}
+
+The value three is omitted from the output because the
+\texttt{continue} statement skips the print operation for
+that iteration. The loop continues with the subsequent
+values.
+
+\subsubsection{The \texttt{goto} Statement}
+
+The \texttt{goto} statement transfers control to a labelled
+statement within the same function. Its use is restricted
+by Go's language specification, including rules that prevent
+jumps into the scope of variables that have not yet been
+declared at the destination.
+
+\begin{lstlisting}
+package main
+
+import "fmt"
+
+func main() {
+    i := 0
+
+Loop:
+    if i < 3 {
+        fmt.Println(i)
+        i++
+        goto Loop
+    }
+}
+\end{lstlisting}
+
+The label \texttt{Loop} identifies the destination of the
+jump. The program repeatedly returns to this point until
+the condition becomes false. Although valid in suitable
+contexts, \texttt{goto} should generally be used sparingly,
+as conventional loops and functions often provide clearer
+control structures.
+
+\subsubsection{The \texttt{return} Statement}
+
+The \texttt{return} statement terminates the execution of
+the current function and optionally provides values to
+the caller. It is frequently used to return computed
+results or terminate execution when a condition is met.
+
+\begin{lstlisting}
+func divide(a, b float64) (float64, bool) {
+    if b == 0 {
+        return 0, false
+    }
+
+    return a / b, true
+}
+\end{lstlisting}
+
+The function returns a numerical result and a Boolean
+status indicator. When the divisor is zero, it returns
+immediately without performing the division. Otherwise,
+it returns the quotient and a successful status value.
+
+\subsection{The \texttt{select} Statement}
+
+The \texttt{select} statement coordinates communication
+operations on channels, which are Go's built-in mechanism
+for communicating values between concurrent activities.
+It allows a goroutine to wait for multiple channel
+operations and proceed when one of them can be performed.
+
+A \texttt{select} statement has a structure similar to
+a \texttt{switch}, but its cases contain channel send or
+receive operations.
+
+\begin{lstlisting}
+select {
+case value := <-channelA:
+    fmt.Println("Received:", value)
+case channelB <- 10:
+    fmt.Println("Value sent")
+default:
+    fmt.Println("No communication is ready")
+}
+\end{lstlisting}
+
+When one or more communications are ready, the
+\texttt{select} statement chooses one ready case and
+executes its associated statements. If multiple cases
+are ready, one is selected pseudo-randomly. If no case
+is ready and a \texttt{default} clause is present, the
+default statements execute immediately. Without a
+\texttt{default} clause, the goroutine blocks until a
+communication can proceed.
+
+The \texttt{select} statement is particularly important
+in concurrent programs that need to coordinate multiple
+channels, implement time-outs, or respond to cancellation
+signals.
+
+\subsection{Deferred Function Execution}
+
+The \texttt{defer} statement schedules a function call
+to execute when the surrounding function returns, either
+through an explicit \texttt{return} statement or by
+reaching the end of its body. Deferred calls also execute
+during normal stack unwinding caused by a panic.
+
+Deferred function calls are executed in last-in, first-out
+order. This means that the most recently deferred function
+is executed first.
+
+\begin{lstlisting}
+func process() {
+    defer fmt.Println("First deferred call")
+    defer fmt.Println("Second deferred call")
+
+    fmt.Println("Processing")
+}
+\end{lstlisting}
+
+The output is:
+
+\begin{lstlisting}
+Processing
+Second deferred call
+First deferred call
+\end{lstlisting}
+
+This behaviour makes \texttt{defer} useful for releasing
+resources, closing files, unlocking mutexes, and performing
+cleanup operations. The function value and arguments of a
+deferred call are evaluated when the \texttt{defer}
+statement executes, although the deferred function itself
+runs later.
+
+\subsection{Panic and Recovery}
+
+Go provides \texttt{panic} and \texttt{recover} for handling
+abnormal run-time conditions and controlling panic
+propagation. A panic interrupts ordinary execution and
+initiates the unwinding of the current goroutine's call
+stack. During this process, deferred functions are executed.
+
+The built-in \texttt{recover} function can intercept a
+panic when called directly from a deferred function in
+the same goroutine.
+
+\begin{lstlisting}
+func safeOperation() {
+    defer func() {
+        if r := recover(); r != nil {
+            fmt.Println("Recovered from panic:", r)
+        }
+    }()
+
+    panic("unexpected condition")
+}
+\end{lstlisting}
+
+In this example, the deferred function invokes
+\texttt{recover} and detects the panic value. Execution
+then continues according to the program's subsequent
+control flow after \texttt{safeOperation} returns.
+
+Panic and recovery should generally be reserved for
+exceptional conditions rather than used as replacements
+for ordinary error handling. Go programs commonly
+represent expected failures using returned \texttt{error}
+values.
+
+\subsection{Scope and Execution of Control Structures}
+
+Control flow constructs in Go interact with lexical scope.
+Variables declared within an initialisation statement,
+a loop body, or a conditional block are subject to the
+scope rules of the enclosing construct. This helps limit
+the visibility of temporary values and reduces unintended
+interactions between different parts of a program.
+
+For example:
+
+\begin{lstlisting}
+if value := 10; value > 5 {
+    fmt.Println(value)
+}
+
+// The variable value is not accessible here.
+\end{lstlisting}
+
+The variable \texttt{value} is available within the
+\texttt{if} statement, including its associated branches,
+but is not accessible after the statement has completed.
+
+The execution of control structures also depends on
+their nesting. For example, a \texttt{break} statement
+normally terminates the innermost eligible enclosing
+loop or selection construct, while a \texttt{return}
+statement terminates the entire current function.
+Labels can modify the targets of certain control transfer
+statements where the language specification permits it.
+
+\subsection{Conclusion}
+
+Control flow in Go provides a structured and expressive
+framework for determining the order of program execution.
+Conditional statements support decision-making, switch
+statements enable multi-way selection, and the versatile
+\texttt{for} statement implements different forms of
+iteration. Control transfer statements alter the normal
+execution path, while \texttt{select} supports channel-based
+communication in concurrent programs.
+
+Furthermore, deferred function execution and panic recovery
+provide mechanisms for resource management and exceptional
+run-time behaviour. An understanding of these constructs,
+their scope rules, and their interaction is essential for
+developing reliable, efficient, and maintainable Go
+applications.

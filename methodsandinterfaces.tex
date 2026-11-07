@@ -1,0 +1,636 @@
+\section{Methods and Interfaces in the Go Programming Language}
+
+Methods and interfaces are fundamental features of the Go programming language that support abstraction, modularity, code reuse, and the development of extensible software systems. Methods associate behaviour with user-defined types, while interfaces define sets of method signatures that specify the behaviour expected from values. Together, these features allow Go programmes to organise operations around data types and to write functions that operate on different concrete types through a common interface.
+
+Unlike class-based object-oriented languages, Go does not require classes or explicit inheritance to associate data with behaviour. Instead, it provides methods with receivers, interfaces with implicit implementation, and composition mechanisms that encourage loosely coupled software design. These features support many object-oriented programming techniques while retaining Go's emphasis on simplicity and explicit programme structure.
+
+This section describes the declaration and use of methods, receiver semantics, interface definitions, implicit interface implementation, polymorphism, type assertions, type switches, and the practical application of methods and interfaces in Go software development.
+
+\subsection{Methods in Go}
+
+A method is a function associated with a particular receiver type. It defines an operation that can be invoked on a value of that type. Methods allow related behaviour to be organised alongside the data on which it operates.
+
+In Go, a method declaration resembles a function declaration but includes a receiver parameter between the \texttt{func} keyword and the method name.
+
+The general syntax is:
+
+\begin{lstlisting}
+func (receiver ReceiverType) MethodName(
+    parameters
+) ReturnType {
+    // Method body
+}
+\end{lstlisting}
+
+The receiver identifies the value on which the method operates. It can be a value receiver or a pointer receiver, depending on whether the method requires a copy of the receiver or access to the original value.
+
+For example, consider a structure representing a rectangle:
+
+\begin{lstlisting}
+type Rectangle struct {
+    Width  float64
+    Height float64
+}
+
+func (r Rectangle) Area() float64 {
+    return r.Width * r.Height
+}
+\end{lstlisting}
+
+The \texttt{Area} method calculates the area using the width and height of the receiver. It is associated with the \texttt{Rectangle} type and can be invoked using method-call syntax.
+
+\begin{lstlisting}
+rectangle := Rectangle{
+    Width:  10,
+    Height: 5,
+}
+
+fmt.Println(rectangle.Area()) // 50
+\end{lstlisting}
+
+The method call \texttt{rectangle.Area()} invokes the method with \texttt{rectangle} as its receiver. This syntax makes the relationship between the operation and the associated data explicit.
+
+\subsection{Declaring Methods on User-Defined Types}
+
+Methods can be declared on named types defined in a package. In ordinary application development, structures are common receiver types, although Go also permits methods on other eligible named types, including types whose underlying types are integers, strings, or other permitted types.
+
+For example, a named integer type can define a method for converting a value into a descriptive category.
+
+\begin{lstlisting}
+type Temperature float64
+
+func (t Temperature) IsFreezing() bool {
+    return t <= 0
+}
+\end{lstlisting}
+
+The method can be called on a value of type \texttt{Temperature}:
+
+\begin{lstlisting}
+temperature := Temperature(-5)
+
+fmt.Println(temperature.IsFreezing()) // true
+\end{lstlisting}
+
+Methods cannot be declared on arbitrary built-in types directly. The receiver base type must satisfy the restrictions of the language specification; in particular, it must be a defined type declared in the same package as the method.
+
+This restriction prevents one package from adding methods directly to types owned by another package. If additional behaviour is required for an existing type, a new defined type can be introduced where appropriate.
+
+\subsection{Value Receivers and Pointer Receivers}
+
+Go supports two principal receiver forms: value receivers and pointer receivers. The distinction determines how the receiver is made available to the method and whether changes to the receiver's fields can modify the original structure value.
+
+\subsubsection{Value Receivers}
+
+A value receiver receives a copy of the receiver value. Any modifications to the receiver's ordinary fields affect that copy rather than the original value.
+
+\begin{lstlisting}
+type Counter struct {
+    Value int
+}
+
+func (c Counter) Increment() {
+    c.Value++
+}
+\end{lstlisting}
+
+Calling the method does not modify the original counter:
+
+\begin{lstlisting}
+counter := Counter{Value: 10}
+
+counter.Increment()
+
+fmt.Println(counter.Value) // 10
+\end{lstlisting}
+
+The increment operation changes the copied receiver, which is discarded when the method returns.
+
+Value receivers are appropriate for methods that inspect a value without modifying it, particularly when the type is small and copying is inexpensive. However, a value receiver does not guarantee that all referenced data remains unchanged: if the receiver contains a slice, map, pointer, or another reference-like value, its methods may still modify the data accessible through that field.
+
+\subsubsection{Pointer Receivers}
+
+A pointer receiver receives a pointer to the receiver value. It allows the method to modify the original structure through that pointer.
+
+\begin{lstlisting}
+func (c *Counter) Increment() {
+    c.Value++
+}
+\end{lstlisting}
+
+The method can now modify the caller's value:
+
+\begin{lstlisting}
+counter := Counter{Value: 10}
+
+counter.Increment()
+
+fmt.Println(counter.Value) // 11
+\end{lstlisting}
+
+When the receiver is addressable, Go allows a method with a pointer receiver to be called using the value expression \texttt{counter.Increment()}. The compiler automatically takes the address of the value where appropriate.
+
+The reverse conversion is not generally available for arbitrary pointer expressions: a method with a value receiver may be called through a pointer, because Go automatically dereferences the pointer where appropriate.
+
+Pointer receivers are particularly useful when a method must modify the receiver, when the type contains fields that should not be copied, or when consistency between a type's method set and interface implementations is important.
+
+\subsection{Methods with Parameters and Return Values}
+
+Methods can accept parameters and return values in the same way as ordinary functions. This allows methods to perform computations, update state, or return information associated with the receiver.
+
+For example:
+
+\begin{lstlisting}
+type Rectangle struct {
+    Width  float64
+    Height float64
+}
+
+func (r Rectangle) Scale(factor float64) Rectangle {
+    return Rectangle{
+        Width:  r.Width * factor,
+        Height: r.Height * factor,
+    }
+}
+\end{lstlisting}
+
+The \texttt{Scale} method returns a new rectangle whose dimensions are multiplied by the specified factor.
+
+\begin{lstlisting}
+rectangle := Rectangle{
+    Width:  10,
+    Height: 5,
+}
+
+larger := rectangle.Scale(2)
+
+fmt.Println(larger.Width)  // 20
+fmt.Println(larger.Height) // 10
+\end{lstlisting}
+
+Because the method uses a value receiver and returns a new value, the original rectangle remains unchanged. This approach is useful when operations should preserve value semantics rather than modify existing state.
+
+\subsection{Method Sets}
+
+A method set is the collection of methods associated with a type under Go's type system. Method sets determine which interfaces a type implements and which methods are available through a particular type expression.
+
+For a defined type \texttt{T}, the method set of \texttt{T} contains methods declared with receiver type \texttt{T}. The method set of \texttt{*T} contains methods declared with receiver types \texttt{T} and \texttt{*T}.
+
+Consider the following example:
+
+\begin{lstlisting}
+type Printer struct{}
+
+func (p Printer) PrintValue() {
+    fmt.Println("Value receiver")
+}
+
+func (p *Printer) PrintPointer() {
+    fmt.Println("Pointer receiver")
+}
+\end{lstlisting}
+
+A value of type \texttt{Printer} has the method \texttt{PrintValue} in its method set. A value of type \texttt{*Printer} has both \texttt{PrintValue} and \texttt{PrintPointer} in its method set.
+
+\begin{lstlisting}
+printer := Printer{}
+
+printer.PrintValue()
+printer.PrintPointer()
+\end{lstlisting}
+
+Both calls are valid because \texttt{printer} is addressable, allowing Go to take its address for the pointer-receiver method call.
+
+However, method-call convenience must be distinguished from interface implementation. A value of type \texttt{Printer} does not implement an interface that requires \texttt{PrintPointer}, because that method is not part of the value type's method set. A value of type \texttt{*Printer} does implement such an interface.
+
+Understanding method sets is important when defining interfaces and deciding whether methods should use value or pointer receivers.
+
+\subsection{Interfaces in Go}
+
+An interface is a type that specifies a set of method signatures. A concrete type implements an interface when its method set satisfies the interface's requirements.
+
+Interfaces define behaviour rather than a particular data representation. They allow functions to operate on values of different concrete types, provided that those values implement the required methods.
+
+The general syntax of an interface declaration is:
+
+\begin{lstlisting}
+type InterfaceName interface {
+    MethodName(parameters) ReturnType
+}
+\end{lstlisting}
+
+For example, an interface describing objects that can report their area can be defined as follows:
+
+\begin{lstlisting}
+type Shape interface {
+    Area() float64
+}
+\end{lstlisting}
+
+The \texttt{Shape} interface requires one method, \texttt{Area}, which returns a \texttt{float64}. Any concrete type whose method set includes a method with this signature satisfies the interface.
+
+\subsection{Implicit Interface Implementation}
+
+Go uses implicit interface implementation. A concrete type does not need to declare explicitly that it implements an interface. It satisfies the interface automatically when its method set contains all the required methods with matching signatures.
+
+For example, two different structure types can implement the same interface:
+
+\begin{lstlisting}
+type Rectangle struct {
+    Width  float64
+    Height float64
+}
+
+func (r Rectangle) Area() float64 {
+    return r.Width * r.Height
+}
+
+type Circle struct {
+    Radius float64
+}
+
+func (c Circle) Area() float64 {
+    return math.Pi * c.Radius * c.Radius
+}
+\end{lstlisting}
+
+Both \texttt{Rectangle} and \texttt{Circle} implement the \texttt{Shape} interface because both provide an \texttt{Area} method with the required signature.
+
+No explicit declaration such as \texttt{implements Shape} is necessary. This design reduces coupling between packages because a type can satisfy an interface without depending directly on the package in which that interface is declared.
+
+\subsection{Using Interfaces as Function Parameters}
+
+Interfaces are particularly useful when a function must operate on multiple concrete types through a common abstraction.
+
+Consider the following function:
+
+\begin{lstlisting}
+func printArea(shape Shape) {
+    fmt.Println("Area:", shape.Area())
+}
+\end{lstlisting}
+
+The function accepts any value implementing \texttt{Shape}. It does not need to know whether the supplied value is a rectangle, a circle, or another geometric type.
+
+\begin{lstlisting}
+func main() {
+    rectangle := Rectangle{
+        Width:  10,
+        Height: 5,
+    }
+
+    circle := Circle{
+        Radius: 3,
+    }
+
+    printArea(rectangle)
+    printArea(circle)
+}
+\end{lstlisting}
+
+The same function processes both values. The actual implementation of \texttt{Area} depends on the concrete value supplied at run time.
+
+This approach supports extensibility. A new shape type can be introduced without modifying \texttt{printArea}, provided that the new type implements the required method.
+
+\subsection{Interface Values}
+
+An interface value can hold a value of a concrete type that implements the interface. Conceptually, an interface value records the concrete type and the associated concrete value.
+
+For example:
+
+\begin{lstlisting}
+var shape Shape
+
+shape = Rectangle{
+    Width:  10,
+    Height: 5,
+}
+
+fmt.Println(shape.Area())
+\end{lstlisting}
+
+The variable \texttt{shape} has the static type \texttt{Shape}, while its dynamic concrete type is \texttt{Rectangle}. A method call through the interface invokes the implementation provided by the concrete type.
+
+The dynamic type may change during execution as different concrete values are assigned to the interface variable, provided that they satisfy the interface.
+
+This behaviour provides runtime polymorphism without requiring class inheritance or explicit virtual-method declarations.
+
+\subsection{The Empty Interface and the \texttt{any} Type}
+
+An interface with no methods is known as the empty interface.
+
+\begin{lstlisting}
+interface{}
+\end{lstlisting}
+
+Because the empty interface requires no methods, every Go type satisfies it. The predeclared identifier \texttt{any}, introduced in Go 1.18, is an alias for \texttt{interface\{\}}.
+
+For example:
+
+\begin{lstlisting}
+func display(value any) {
+    fmt.Println(value)
+}
+\end{lstlisting}
+
+The function can accept values of different types:
+
+\begin{lstlisting}
+display(42)
+display("Hello")
+display(true)
+display([]int{1, 2, 3})
+\end{lstlisting}
+
+The \texttt{any} type is useful when a function must accept heterogeneous values, such as generic data decoded from JSON or values passed to logging utilities.
+
+However, using \texttt{any} reduces the amount of type information available to the compiler. When a function requires specific behaviour, a more restrictive interface or a type parameter may provide better compile-time guarantees.
+
+\subsection{Type Assertions}
+
+A type assertion allows a programme to inspect or extract the concrete value held by an interface. It tests whether the dynamic type of an interface value matches a specified type.
+
+The general syntax is:
+
+\begin{lstlisting}
+value := interfaceValue.(ConcreteType)
+\end{lstlisting}
+
+For example:
+
+\begin{lstlisting}
+var value any = "Hello, Go"
+
+text := value.(string)
+fmt.Println(text)
+\end{lstlisting}
+
+The assertion succeeds because the dynamic type of \texttt{value} is \texttt{string}.
+
+If the dynamic type does not match the asserted type, a single-result type assertion causes a run-time panic. To avoid this behaviour, the two-result form can be used.
+
+\begin{lstlisting}
+value := any(42)
+
+text, ok := value.(string)
+
+if ok {
+    fmt.Println(text)
+} else {
+    fmt.Println("Value is not a string")
+}
+\end{lstlisting}
+
+The Boolean result \texttt{ok} indicates whether the assertion succeeded. This form is appropriate when the dynamic type is uncertain and failure must be handled safely.
+
+Type assertions can also determine whether a concrete value implements another interface.
+
+\subsection{Type Switches}
+
+A type switch provides a structured mechanism for selecting different operations according to the dynamic type held by an interface value.
+
+\begin{lstlisting}
+func describe(value any) {
+    switch v := value.(type) {
+    case int:
+        fmt.Println("Integer:", v)
+    case string:
+        fmt.Println("String:", v)
+    case bool:
+        fmt.Println("Boolean:", v)
+    default:
+        fmt.Println("Unknown type")
+    }
+}
+\end{lstlisting}
+
+The expression \texttt{value.(type)} is permitted in a type-switch statement and identifies the dynamic type of the interface value.
+
+The variable \texttt{v} receives a value whose type depends on the selected case. This allows the programme to perform type-specific operations while keeping the branching logic explicit.
+
+Type switches are useful when processing heterogeneous values, although excessive reliance on them may indicate that a more appropriate interface abstraction could simplify the design.
+
+\subsection{Interface Composition}
+
+Go allows interfaces to be composed from other interfaces. An interface can include multiple method specifications and embed other interface types.
+
+For example:
+
+\begin{lstlisting}
+type Reader interface {
+    Read() error
+}
+
+type Writer interface {
+    Write() error
+}
+
+type ReadWriter interface {
+    Reader
+    Writer
+}
+\end{lstlisting}
+
+The \texttt{ReadWriter} interface requires both the \texttt{Read} and \texttt{Write} methods because it embeds the two smaller interfaces.
+
+A concrete type satisfies \texttt{ReadWriter} if its method set provides both required methods with the appropriate signatures.
+
+Interface composition encourages small, focused abstractions. Instead of defining one large interface for every possible operation, a programme can define several smaller interfaces and combine them where necessary.
+
+\subsection{Pointer Receivers and Interface Satisfaction}
+
+Whether a type implements an interface depends on its method set, not merely on whether a method call can be written using a particular expression.
+
+Consider the following example:
+
+\begin{lstlisting}
+type Speaker interface {
+    Speak()
+}
+
+type Person struct {
+    Name string
+}
+
+func (p *Person) Speak() {
+    fmt.Println("Hello, my name is", p.Name)
+}
+\end{lstlisting}
+
+The \texttt{Speak} method has a pointer receiver. Therefore, \texttt{*Person} implements \texttt{Speaker}, while \texttt{Person} does not implement it through its value method set.
+
+The following assignment is valid:
+
+\begin{lstlisting}
+var speaker Speaker = &Person{
+    Name: "Alice",
+}
+
+speaker.Speak()
+\end{lstlisting}
+
+However, assigning a non-pointer \texttt{Person} value to \texttt{Speaker} would be invalid because \texttt{Person} does not provide the required method in its method set.
+
+This distinction is important when choosing receiver types and designing APIs that accept interfaces.
+
+\subsection{Nil Interfaces and Typed Nil Values}
+
+An important aspect of Go interfaces is the distinction between a nil interface value and an interface value containing a nil concrete pointer.
+
+An interface value is nil only when it has neither a dynamic type nor a dynamic value. If an interface contains a typed nil pointer, the interface itself is not nil.
+
+For example:
+
+\begin{lstlisting}
+type Speaker interface {
+    Speak()
+}
+
+type Person struct {
+    Name string
+}
+
+func (p *Person) Speak() {
+    if p == nil {
+        fmt.Println("Nil person")
+        return
+    }
+
+    fmt.Println("Hello,", p.Name)
+}
+
+var person *Person
+var speaker Speaker = person
+
+fmt.Println(person == nil)  // true
+fmt.Println(speaker == nil) // false
+
+speaker.Speak() // Nil person
+\end{lstlisting}
+
+The variable \texttt{person} is a nil pointer. However, after it is assigned to \texttt{speaker}, the interface contains the dynamic type \texttt{*Person} and a nil pointer value.
+
+Consequently, the interface is not nil. The method call is safe in this example because the method explicitly handles a nil receiver.
+
+This distinction is a frequent source of unexpected behaviour in Go programmes. Functions returning interfaces should therefore be designed carefully to avoid unintentionally returning typed nil values when callers expect a nil interface.
+
+\subsection{Interfaces and Dependency Inversion}
+
+Interfaces are useful for reducing dependencies between software components. Rather than depending directly on a concrete implementation, a component can depend on an interface that defines the behaviour it requires.
+
+For example, an application might use an interface to represent a service that sends notifications.
+
+\begin{lstlisting}
+type Notifier interface {
+    Send(message string) error
+}
+\end{lstlisting}
+
+A concrete implementation could send messages through an email service:
+
+\begin{lstlisting}
+type EmailNotifier struct{}
+
+func (e EmailNotifier) Send(message string) error {
+    fmt.Println("Sending email:", message)
+    return nil
+}
+\end{lstlisting}
+
+A business function can depend on the interface rather than the concrete notifier:
+
+\begin{lstlisting}
+func notifyUser(
+    notifier Notifier,
+    message string,
+) error {
+    return notifier.Send(message)
+}
+\end{lstlisting}
+
+The function can be used with any implementation that satisfies \texttt{Notifier}. An alternative implementation could send a message through an SMS gateway or record it in a test log.
+
+This design improves testability because tests can provide a substitute implementation without requiring a real external service. It also allows concrete implementations to change without requiring modifications to the business logic.
+
+In Go, interfaces are often most effective when declared by the package that consumes the behaviour, rather than by the package that provides a particular implementation.
+
+\subsection{Standard Library Interfaces}
+
+Go's standard library uses interfaces extensively to define common behaviours across different implementations.
+
+For example, the \texttt{io.Reader} interface represents a source from which data can be read.
+
+\begin{lstlisting}
+type Reader interface {
+    Read(p []byte) (n int, err error)
+}
+\end{lstlisting}
+
+The interface specifies a method that reads data into a byte slice and returns the number of bytes read and an error value.
+
+Functions that accept an \texttt{io.Reader} can operate on different data sources, including files, network connections, and in-memory buffers.
+
+\begin{lstlisting}
+func readData(reader io.Reader) error {
+    data, err := io.ReadAll(reader)
+    if err != nil {
+        return err
+    }
+
+    fmt.Println(string(data))
+    return nil
+}
+\end{lstlisting}
+
+The function does not need to know the concrete type of the reader. It depends only on the behaviour specified by the interface.
+
+This design is a central feature of Go's standard library and demonstrates how interfaces promote reuse and interoperability between independently developed components.
+
+\subsection{Methods, Interfaces, and Object-Oriented Design}
+
+Go supports several concepts commonly associated with object-oriented programming, including encapsulation, abstraction, and polymorphism. However, it does not implement a traditional class-based inheritance model.
+
+Methods associate behaviour with types, while interfaces define behavioural contracts. Structure embedding and composition provide mechanisms for reusing data and methods without requiring inheritance hierarchies.
+
+For example, a programme can define an interface for payment processing:
+
+\begin{lstlisting}
+type PaymentProcessor interface {
+    Process(amount float64) error
+}
+\end{lstlisting}
+
+Different types can implement this interface for different payment mechanisms. A function accepting \texttt{PaymentProcessor} can invoke the \texttt{Process} method without depending on a specific payment implementation.
+
+This approach encourages loose coupling, supports dependency injection, and allows concrete implementations to be replaced independently of the code that consumes them.
+
+The absence of explicit interface implementation declarations also reduces coupling between packages and supports the development of modular systems.
+
+\subsection{Best Practices for Methods and Interfaces}
+
+Methods and interfaces should be designed to express clear responsibilities and to minimise unnecessary dependencies between components.
+
+The following practices are generally recommended:
+
+\begin{itemize}
+    \item Use methods when an operation is naturally associated with a particular type.
+    \item Choose value receivers for suitable read-only operations and pointer receivers when mutation or avoidance of copying is required.
+    \item Keep interfaces small and focused on the behaviour required by their consumers.
+    \item Prefer implicit interface implementation rather than introducing unnecessary implementation declarations or wrapper types.
+    \item Use interfaces at component boundaries when multiple implementations or independent testing are required.
+    \item Avoid using the empty interface when a more specific interface or a generic type parameter provides stronger guarantees.
+    \item Handle nil interface values and typed nil pointers carefully.
+    \item Use type assertions and type switches when concrete-type inspection is genuinely necessary.
+    \item Prefer composition and interface embedding over unnecessarily complex inheritance-like structures.
+    \item Ensure that methods have clear contracts and that errors are handled explicitly where operations can fail.
+\end{itemize}
+
+Following these principles helps produce Go programmes that are easier to test, extend, and maintain.
+
+\subsection{Conclusion}
+
+Methods and interfaces are central to Go's approach to organising behaviour and building modular software. Methods associate operations with user-defined types through receiver parameters, while interfaces define sets of method signatures that specify the behaviour required from values.
+
+Go's implicit interface implementation supports polymorphism without explicit inheritance declarations. Combined with method sets, pointer receivers, interface composition, type assertions, and type switches, this mechanism allows programmes to separate abstractions from concrete implementations.
+
+A clear understanding of receiver semantics, interface values, nil behaviour, and method sets is essential for designing reliable Go APIs. When used appropriately, methods and interfaces encourage small, reusable components, improve testability, and support extensible software architectures.

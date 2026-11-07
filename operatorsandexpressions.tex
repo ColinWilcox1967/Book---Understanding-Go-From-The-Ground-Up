@@ -1,0 +1,539 @@
+\section{Operators and Expressions in the Go Programming Language}
+
+Go, commonly referred to as Golang, is a statically typed,
+compiled programming language designed to support the development
+of reliable, efficient and maintainable software. Operators and
+expressions constitute fundamental elements of the language's
+syntax and semantics. Operators specify operations performed on
+operands, whilst expressions combine operands, operators and
+function calls to produce values.
+
+Go defines operators for arithmetic, comparison, logical
+evaluation, bit manipulation, assignment, pointer operations and
+other language-specific tasks. The validity of an expression
+depends on the types of its operands, the operator being used
+and the rules defined by the language specification.
+
+\section{Operators in Go}
+
+An operator is a syntactic element that specifies an operation
+on one or more operands. Depending on the operator, the number
+of operands may be one, two or, in certain syntactic forms,
+associated with a specialised operation.
+
+Operators in Go can be classified into several principal
+categories.
+
+\subsection{Arithmetic Operators}
+
+Arithmetic operators perform numerical calculations. Go supports
+the following operators:
+
+\begin{center}
+\begin{tabular}{|c|l|}
+\hline
+\textbf{Operator} & \textbf{Description} \\
+\hline
+\texttt{+} & Addition \\
+\texttt{-} & Subtraction or unary negation \\
+\texttt{*} & Multiplication \\
+\texttt{/} & Division \\
+\texttt{\%} & Remainder \\
+\hline
+\end{tabular}
+\end{center}
+
+The arithmetic operators \texttt{+}, \texttt{-}, \texttt{*}
+and \texttt{/} are applicable to compatible numeric types.
+The remainder operator \texttt{\%} is applicable to integer
+operands.
+
+For example:
+
+\begin{lstlisting}
+package main
+
+import "fmt"
+
+func main() {
+    a := 17
+    b := 5
+
+    fmt.Println(a + b) // 22
+    fmt.Println(a - b) // 12
+    fmt.Println(a * b) // 85
+    fmt.Println(a / b) // 3
+    fmt.Println(a % b) // 2
+}
+\end{lstlisting}
+
+When both operands of division are integers, the result is an
+integer, with any fractional part discarded towards zero.
+Consequently, the expression \texttt{17 / 5} evaluates to
+\texttt{3}, rather than \texttt{3.4}.
+
+Division by zero causes a run-time panic for integer operands.
+Floating-point division follows IEEE 754 behaviour, allowing
+results such as positive infinity or NaN in appropriate cases.
+
+The addition operator also supports string concatenation.
+For example, \texttt{"Go" + "Lang"} produces
+\texttt{"GoLang"}.
+
+\subsection{Comparison Operators}
+
+Comparison operators compare two operands and produce a Boolean
+result of type \texttt{bool}. The supported operators are:
+
+\begin{center}
+\begin{tabular}{|c|l|}
+\hline
+\textbf{Operator} & \textbf{Meaning} \\
+\hline
+\texttt{==} & Equal to \\
+\texttt{!=} & Not equal to \\
+\texttt{<} & Less than \\
+\texttt{<=} & Less than or equal to \\
+\texttt{>} & Greater than \\
+\texttt{>=} & Greater than or equal to \\
+\hline
+\end{tabular}
+\end{center}
+
+The applicability of a comparison operator depends on the
+operand types. Equality can be tested for comparable types,
+including numeric values, strings, Booleans and pointers,
+subject to the language's comparability rules. Ordered
+comparisons are available for supported ordered types, such
+as numbers and strings.
+
+For example:
+
+\begin{lstlisting}
+x := 12
+y := 20
+
+fmt.Println(x < y)  // true
+fmt.Println(x == y) // false
+fmt.Println(x != y) // true
+\end{lstlisting}
+
+Go does not permit implicit conversion between different
+numeric types. Therefore, comparing an \texttt{int} value
+directly with a \texttt{float64} value generally requires an
+explicit conversion.
+
+\subsection{Logical Operators}
+
+Logical operators operate on Boolean operands and are commonly
+used to construct compound conditions.
+
+\begin{center}
+\begin{tabular}{|c|l|}
+\hline
+\textbf{Operator} & \textbf{Meaning} \\
+\hline
+\texttt{\&\&} & Logical AND \\
+\texttt{||} & Logical OR \\
+\texttt{!} & Logical NOT \\
+\hline
+\end{tabular}
+\end{center}
+
+The \texttt{\&\&} operator produces \texttt{true} only when
+both operands are true. The \texttt{||} operator produces
+\texttt{true} when at least one operand is true, whilst
+\texttt{!} reverses a Boolean value.
+
+For example:
+
+\begin{lstlisting}
+age := 25
+hasID := true
+
+eligible := age >= 18 && hasID
+fmt.Println(eligible) // true
+\end{lstlisting}
+
+The logical operators \texttt{\&\&} and \texttt{||} use
+short-circuit evaluation. The second operand is evaluated only
+when necessary to determine the result. For instance, in an
+expression of the form \texttt{A \&\& B}, operand \texttt{B}
+is not evaluated if \texttt{A} is false.
+
+\subsection{Bitwise and Bit-Shift Operators}
+
+Bitwise operators manipulate individual bits of integer values.
+They are useful in low-level programming, binary protocols,
+bit masks and performance-sensitive operations.
+
+\begin{center}
+\begin{tabular}{|c|l|}
+\hline
+\textbf{Operator} & \textbf{Description} \\
+\hline
+\texttt{\&} & Bitwise AND \\
+\texttt{|} & Bitwise OR \\
+\texttt{\^{}} & Bitwise XOR, or unary bitwise complement \\
+\texttt{\&\^} & Bit clear \\
+\texttt{<<} & Left shift \\
+\texttt{>>} & Right shift \\
+\hline
+\end{tabular}
+\end{center}
+
+The bit-clear operator \texttt{\&\^} clears those bits in its
+left operand that are set in its right operand. The binary
+operator \texttt{\^{}} performs exclusive OR, whereas its
+unary form complements the bits of an integer operand.
+
+For example:
+
+\begin{lstlisting}
+a := 12 // Binary: 1100
+b := 10 // Binary: 1010
+
+fmt.Println(a & b)   // 8
+fmt.Println(a | b)   // 14
+fmt.Println(a ^ b)   // 6
+fmt.Println(a &^ b)  // 4
+fmt.Println(a << 1)  // 24
+fmt.Println(a >> 2)  // 3
+\end{lstlisting}
+
+Bitwise binary operators require integer operands of compatible
+types. Shift operations move the bits of the left operand by
+the number of positions specified by the right operand. The
+shift count must be an integer expression, and a negative
+shift count is not permitted.
+
+\subsection{Assignment Operators}
+
+Assignment operators associate values with variables or other
+assignable operands. The simple assignment operator is
+\texttt{=}, whilst compound assignment operators combine an
+operation with assignment.
+
+\begin{center}
+\begin{tabular}{|c|l|}
+\hline
+\textbf{Operator} & \textbf{Equivalent operation} \\
+\hline
+\texttt{=} & Assignment \\
+\texttt{+=} & Addition followed by assignment \\
+\texttt{-=} & Subtraction followed by assignment \\
+\texttt{*=} & Multiplication followed by assignment \\
+\texttt{/=} & Division followed by assignment \\
+\texttt{\%=} & Remainder followed by assignment \\
+\texttt{\&=} & Bitwise AND followed by assignment \\
+\texttt{|=} & Bitwise OR followed by assignment \\
+\texttt{\^{ }=} & Bitwise XOR followed by assignment \\
+\texttt{\&\^=} & Bit clear followed by assignment \\
+\texttt{<<=} & Left shift followed by assignment \\
+\texttt{>>=} & Right shift followed by assignment \\
+\hline
+\end{tabular}
+\end{center}
+
+For example:
+
+\begin{lstlisting}
+count := 10
+count += 5
+count *= 2
+
+fmt.Println(count) // 30
+\end{lstlisting}
+
+The short declaration operator \texttt{:=} is distinct from
+ordinary assignment. It declares one or more local variables
+and initialises them, subject to the scope and declaration
+rules of Go. It cannot be used as a general replacement for
+\texttt{=} when all variables have already been declared.
+
+\subsection{Pointer Operators}
+
+Go provides two principal pointer operators:
+
+\begin{itemize}
+    \item \texttt{\&} obtains the address of an addressable
+    operand.
+    \item \texttt{*} dereferences a pointer to access the
+    value stored at the referenced address.
+\end{itemize}
+
+For example:
+
+\begin{lstlisting}
+x := 42
+p := &x
+
+fmt.Println(*p) // 42
+
+*p = 100
+fmt.Println(x)  // 100
+\end{lstlisting}
+
+In this example, \texttt{p} stores a pointer to \texttt{x}.
+Dereferencing \texttt{p} permits the referenced value to be
+read or modified. Dereferencing a nil pointer causes a
+run-time panic.
+
+\subsection{Increment and Decrement}
+
+Go supports the increment operator \texttt{++} and decrement
+operator \texttt{--}. These statements increase or decrease
+an integer or other suitable numeric variable by one.
+
+\begin{lstlisting}
+n := 5
+n++
+fmt.Println(n) // 6
+
+n--
+fmt.Println(n) // 5
+\end{lstlisting}
+
+Unlike languages such as C and C++, Go treats \texttt{++} and
+\texttt{--} as statements rather than expressions. They cannot
+be used as parts of larger expressions, and Go does not
+support postfix or prefix value-producing forms such as
+\texttt{++n} or \texttt{n++} within an expression.
+
+\section{Expressions in Go}
+
+An expression is a syntactic construct that represents a value
+or computation. Expressions may consist of constants,
+variables, operators, function calls, conversions and other
+expressions combined according to the language grammar.
+
+The type and value of an expression are determined by the
+types of its components and the rules governing the operations
+performed.
+
+\subsection{Constant and Variable Expressions}
+
+A constant expression represents a compile-time constant
+value, whereas a variable expression refers to a variable
+whose value may change during execution.
+
+For example:
+
+\begin{lstlisting}
+const rate = 0.15
+price := 200.0
+
+discount := price * rate
+finalPrice := price - discount
+\end{lstlisting}
+
+Here, \texttt{rate} is a constant and \texttt{price} is a
+variable. The expressions calculate a discount and the
+resulting price.
+
+Go constants may be untyped until a context requires a
+specific type. This permits certain constant expressions
+to be evaluated with greater precision than ordinary
+run-time floating-point expressions.
+
+\subsection{Arithmetic Expressions}
+
+Arithmetic expressions combine numeric operands with
+arithmetic operators. Their validity depends on the
+compatibility of operand types and the requirements of
+the relevant operation.
+
+For example:
+
+\begin{lstlisting}
+a := 8
+b := 3
+result := a*a + b*b
+fmt.Println(result) // 73
+\end{lstlisting}
+
+The expression \texttt{a*a + b*b} consists of two
+multiplication subexpressions combined by addition.
+Operator precedence determines the order in which these
+operations are grouped.
+
+\subsection{Boolean Expressions}
+
+Boolean expressions evaluate to values of type \texttt{bool}.
+They commonly contain comparison and logical operators and
+are used in conditional statements and loops.
+
+\begin{lstlisting}
+temperature := 22
+isDry := true
+
+if temperature >= 20 && isDry {
+    fmt.Println("Suitable conditions")
+}
+\end{lstlisting}
+
+The condition is true only when the temperature is at least
+20 and \texttt{isDry} is true. Go requires conditions in
+constructs such as \texttt{if} and \texttt{for} to be Boolean;
+it does not implicitly convert integers or other values to
+Boolean values.
+
+\subsection{Function-Call Expressions}
+
+A function-call expression invokes a function and may produce
+one or more results. Function calls can appear within larger
+expressions when their result types are appropriate.
+
+\begin{lstlisting}
+func square(n int) int {
+    return n * n
+}
+
+func main() {
+    result := square(6) + square(2)
+    println(result) // 40
+}
+\end{lstlisting}
+
+The expression \texttt{square(6) + square(2)} invokes the
+function twice and adds the returned integer values.
+A function returning multiple values generally requires a
+context that accepts those results, such as a multiple
+assignment or a return statement.
+
+\subsection{Composite Expressions}
+
+Composite expressions combine several operations, potentially
+including arithmetic, comparisons, logical operators and
+function calls. Parentheses can be used to make the intended
+grouping explicit.
+
+For example:
+
+\begin{lstlisting}
+a := 10
+b := 4
+c := 2
+
+result := (a + b) * c
+fmt.Println(result) // 28
+\end{lstlisting}
+
+The parentheses require the addition to be evaluated as
+a subexpression before multiplication. Without parentheses,
+operator precedence would group multiplication before
+addition.
+
+\section{Operator Precedence and Associativity}
+
+Operator precedence determines how operators are grouped
+when an expression contains multiple operators without
+explicit parentheses. Go defines five precedence levels
+for binary operators, listed below from highest to lowest.
+
+\begin{center}
+\begin{tabular}{|c|l|}
+\hline
+\textbf{Level} & \textbf{Operators} \\
+\hline
+5 & \texttt{* / \% << >> \& \&\^} \\
+4 & \texttt{+ - | \^{}} \\
+3 & \texttt{== != < <= > >=} \\
+2 & \texttt{\&\&} \\
+1 & \texttt{||} \\
+\hline
+\end{tabular}
+\end{center}
+
+Operators at higher precedence levels are grouped before
+operators at lower levels. Operators within the same binary
+precedence level associate from left to right.
+
+For example:
+
+\begin{lstlisting}
+result := 2 + 3*4
+fmt.Println(result) // 14
+\end{lstlisting}
+
+Multiplication has a higher precedence than addition;
+therefore, the expression is grouped as
+\texttt{2 + (3*4)}.
+
+Parentheses should be used when they improve clarity,
+particularly in expressions containing several operators.
+
+\section{Type Rules and Conversions}
+
+Go is statically typed. Consequently, the compiler checks
+whether an expression uses operators with operands of
+appropriate types. Unlike some dynamically typed languages,
+Go does not generally perform implicit conversions between
+different numeric types.
+
+For example:
+
+\begin{lstlisting}
+var x int = 10
+var y float64 = 2.5
+
+// Invalid: mismatched operand types
+// result := x + y
+
+result := float64(x) + y
+fmt.Println(result) // 12.5
+\end{lstlisting}
+
+The explicit conversion \texttt{float64(x)} converts the
+integer value to \texttt{float64}, allowing the addition.
+Conversions should be used with an understanding of their
+effects, as converting floating-point values to integers
+discards the fractional part, and converting between numeric
+types can lose information.
+
+\section{Evaluation and Run-time Behaviour}
+
+Expression evaluation follows the language's specification
+for operand evaluation, operator semantics and control flow.
+Logical short-circuiting can prevent an operand from being
+evaluated, whilst other expressions may invoke functions
+that modify program state.
+
+Programmers should not assume that arbitrary operands are
+evaluated in an intuitively chosen order. Go specifies
+particular evaluation-order rules, including left-to-right
+ordering for function calls, method calls and communication
+operations within an expression, as well as rules for
+assignments and other constructs.
+
+Certain expressions may lead to run-time panics, including
+integer division by zero, nil-pointer dereferencing and
+out-of-range indexing. These situations should be considered
+when writing robust programs.
+
+\section{Conclusion}
+
+Operators and expressions are essential to Go's computational
+model. Operators specify arithmetic, comparison, logical,
+bitwise, assignment and pointer-related operations, whilst
+expressions combine these operations to produce values and
+control computational decisions.
+
+A sound understanding of operator precedence, associativity,
+type compatibility, explicit conversions and evaluation
+behaviour is necessary for writing correct and maintainable
+Go programs. Adhering to these rules improves code clarity
+and reduces the likelihood of compilation errors and
+unexpected run-time behaviour.
+
+\section{Reference}
+
+The authoritative source for the syntax and semantics of
+Go operators and expressions is the official Go Language
+Specification, particularly the sections on operators,
+expressions, assignments, conversions and evaluation order.
+
+\begin{itemize}
+    \item \url{https://go.dev/ref/spec}
+\end{itemize}
+

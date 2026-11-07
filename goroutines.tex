@@ -1,0 +1,414 @@
+\section{Goroutines in the Go Programming Language}
+
+\subsection{Introduction}
+
+A \textit{goroutine} is a lightweight unit of concurrent execution provided by the Go programming language. Goroutines enable a program to execute multiple functions concurrently within a single process, allowing tasks to make progress independently without requiring the programmer to manage operating-system threads directly.\\
+
+A goroutine is initiated by using the \texttt{go} keyword followed by a function call. For example:
+
+\begin{lstlisting}
+package main
+
+import (
+    "fmt"
+    "time"
+)
+
+func printMessage() {
+    fmt.Println("Hello from a goroutine")
+}
+
+func main() {
+    go printMessage()
+    time.Sleep(100 * time.Millisecond)
+    fmt.Println("Main function finished")
+}
+\end{lstlisting}
+
+In this example, the invocation of \texttt{printMessage} executes in a new goroutine. The \texttt{main} function continues without waiting for that goroutine to complete. The call to \texttt{time.Sleep} merely gives the goroutine an opportunity to execute; it does not guarantee that the message will be printed before the main function resumes.\\
+
+When the \texttt{main} function returns, the program terminates, including any goroutines that are still executing. Consequently, reliable concurrent programs should use explicit synchronisation mechanisms rather than arbitrary delays.
+
+\subsection{Goroutines and Operating-System Threads}
+
+Goroutines differ from operating-system threads in their allocation, scheduling and management. An operating-system thread is managed by the operating system, whereas a goroutine is managed primarily by the Go runtime.\\
+
+The Go runtime multiplexes goroutines over a smaller or comparable number of operating-system threads, depending on the workload and runtime configuration. This arrangement allows a program to support a large number of concurrent tasks without requiring a dedicated operating-system thread for every task.\\
+
+Goroutines are lightweight relative to operating-system threads, although their memory and scheduling costs are not zero. Each goroutine begins with a relatively small stack, which can grow and shrink as required. This contrasts with many traditional threading implementations, in which thread stacks are allocated with substantially larger fixed or reserved sizes.\\
+
+The principal distinctions are summarised as follows:
+
+\begin{itemize}
+    \item \textbf{Management:} Goroutines are scheduled by the Go runtime, while operating-system threads are scheduled by the operating system.
+    \item \textbf{Memory:} Goroutines generally begin with small, dynamically managed stacks, reducing the cost of creating numerous concurrent tasks.
+    \item \textbf{Scheduling:} Multiple goroutines can share operating-system threads, allowing the runtime to manage concurrency efficiently.
+    \item \textbf{Communication:} Go provides channels and synchronisation primitives that facilitate communication and coordination between goroutines.
+    \item \textbf{Parallelism:} Goroutines can execute in parallel when the runtime has access to multiple execution resources, subject to configuration and available hardware.
+\end{itemize}
+
+It is important to distinguish concurrency from parallelism. Concurrency concerns the organisation of multiple tasks whose execution can overlap in time. Parallelism means that multiple tasks execute simultaneously. A Go program can be concurrent without executing goroutines in parallel.
+
+\subsection{Creating and Executing Goroutines}
+
+A goroutine is created by placing the \texttt{go} keyword before a function or method invocation. The function call is evaluated and scheduled for execution independently of the calling goroutine.
+
+Consider the following example:
+
+\begin{lstlisting}
+package main
+
+import (
+    "fmt"
+    "time"
+)
+
+func worker(id int) {
+    fmt.Printf("Worker %d started\n", id)
+    time.Sleep(200 * time.Millisecond)
+    fmt.Printf("Worker %d finished\n", id)
+}
+
+func main() {
+    for i := 1; i <= 3; i++ {
+        go worker(i)
+    }
+
+    time.Sleep(300 * time.Millisecond)
+    fmt.Println("All workers should have finished")
+}
+\end{lstlisting}
+
+The loop launches three goroutines, each of which executes the \texttt{worker} function with a different identifier. Their execution order is not guaranteed. For example, worker 2 might start before worker 1, and the order in which completion messages appear may vary between executions.\\
+
+The final sleep is used here only to illustrate concurrent execution. It is not a robust method of coordinating goroutines because execution times can vary with system load, scheduling and other factors.\\
+
+A more reliable implementation uses a \texttt{sync.WaitGroup}:
+
+\begin{lstlisting}
+package main
+
+import (
+    "fmt"
+    "sync"
+    "time"
+)
+
+func worker(id int, wg *sync.WaitGroup) {
+    defer wg.Done()
+
+    fmt.Printf("Worker %d started\n", id)
+    time.Sleep(200 * time.Millisecond)
+    fmt.Printf("Worker %d finished\n", id)
+}
+
+func main() {
+    var wg sync.WaitGroup
+
+    for i := 1; i <= 3; i++ {
+        wg.Add(1)
+        go worker(i, &wg)
+    }
+
+    wg.Wait()
+    fmt.Println("All workers have finished")
+}
+\end{lstlisting}
+
+The \texttt{WaitGroup} maintains a counter representing outstanding tasks. Each call to \texttt{Add(1)} increments the counter, and each invocation of \texttt{Done()} decrements it. The call to \texttt{Wait()} blocks until the counter reaches zero.\\
+
+Calling \texttt{Add} before launching each goroutine avoids a race in which the main goroutine could begin waiting before the counter has been incremented. The use of \texttt{defer wg.Done()} also ensures that the counter is decremented when the worker returns, including when the function exits through an early return.
+
+\subsection{The Go Runtime Scheduler}
+
+The Go runtime is responsible for scheduling goroutines onto operating-system threads. Its scheduler is commonly described using three conceptual entities: G, M and P.
+
+\begin{itemize}
+    \item \textbf{G (Goroutine):} Represents a goroutine, including its execution state, stack and associated runtime metadata.
+    \item \textbf{M (Machine):} Represents an operating-system thread on which Go code executes.
+    \item \textbf{P (Processor):} Represents the runtime resources and scheduling context required for an M to execute Go code.
+\end{itemize}
+
+A goroutine must execute on an M that has an associated P. The number of Ps available for executing Go code is controlled by the \texttt{GOMAXPROCS} setting. In modern Go versions, the default is normally determined by the runtime and available processor resources, subject to runtime-specific configuration and container-aware behaviour.\\
+
+The distinction between M and P is particularly important. The number of operating-system threads is not necessarily equal to the number of Ps or goroutines. The runtime can maintain many goroutines while using a smaller pool of threads for execution.\\
+
+Conceptually, the scheduling process operates as follows:
+
+\begin{enumerate}
+    \item A goroutine is created and made runnable.
+    \item The runtime places the goroutine in a scheduling queue.
+    \item An available M associated with a P executes the goroutine.
+    \item If the goroutine blocks, yields or completes, the runtime can schedule another runnable goroutine.
+    \item When the blocked goroutine becomes runnable again, it can resume execution on an appropriate available thread.
+\end{enumerate}
+
+This model is a conceptual simplification. The actual scheduler incorporates local and global run queues, work stealing, network polling, system-call handling and other mechanisms.\\
+
+The scheduler attempts to distribute work efficiently. An M whose local run queue is empty may obtain work from another P, helping to balance execution across available processors. The runtime can also create or reuse operating-system threads when necessary, including when existing threads become blocked in certain system calls.
+
+\subsection{Concurrency and Parallel Execution}
+
+Goroutines facilitate concurrency by allowing tasks to proceed independently. For example, a server might handle separate client requests in different goroutines, while an application might perform file processing and network communication concurrently.\\
+
+The following example illustrates two independent tasks:
+
+\begin{lstlisting}
+package main
+
+import (
+    "fmt"
+    "sync"
+)
+
+func calculateSquares(values []int, wg *sync.WaitGroup) {
+    defer wg.Done()
+
+    for _, value := range values {
+        fmt.Println(value * value)
+    }
+}
+
+func main() {
+    var wg sync.WaitGroup
+
+    inputs := [][]int{
+        {1, 2, 3},
+        {4, 5, 6},
+    }
+
+    for _, values := range inputs {
+        wg.Add(1)
+        go calculateSquares(values, &wg)
+    }
+
+    wg.Wait()
+}
+\end{lstlisting}
+
+Each invocation of \texttt{calculateSquares} processes a separate slice. The two goroutines can execute concurrently, and they may execute in parallel if multiple processors are available to the Go runtime.\\
+
+However, their output may be interleaved. If deterministic output is required, the program must coordinate access to the output or collect the results and print them in a controlled order.\\
+
+Increasing the number of goroutines does not necessarily improve performance. For CPU-bound work, excessive goroutine creation can introduce scheduling overhead and contention. For I/O-bound work, concurrency may improve throughput because one task can progress while another waits for an external operation.\\
+
+\subsection{Communication Between Goroutines Using Channels}
+
+Go provides channels as a mechanism for communication and synchronisation between goroutines. A channel is a typed conduit through which values of a specified type can be transmitted.\\
+
+A channel can be created using the built-in \texttt{make} function:
+
+\begin{lstlisting}
+jobs := make(chan int)
+\end{lstlisting}
+
+The channel above is unbuffered. A send operation blocks until a receiver is ready to receive the transmitted value, and a receive operation blocks until a sender provides a value.\\
+
+The following example demonstrates communication between a producer and a consumer:
+
+\begin{lstlisting}
+package main
+
+import "fmt"
+
+func producer(ch chan<- int) {
+    for i := 1; i <= 5; i++ {
+        ch <- i
+    }
+    close(ch)
+}
+
+func consumer(ch <-chan int) {
+    for value := range ch {
+        fmt.Println("Received:", value)
+    }
+}
+
+func main() {
+    ch := make(chan int)
+
+    go producer(ch)
+    consumer(ch)
+}
+\end{lstlisting}
+
+The \texttt{producer} function sends five integers through the channel and then closes it. The \texttt{consumer} function receives values until the channel is closed and drained.\\
+
+The channel parameter types express the permitted direction of communication:
+
+\begin{itemize}
+    \item \texttt{chan<- int} denotes a send-only channel of integers.
+    \item \texttt{<-chan int} denotes a receive-only channel of integers.
+    \item \texttt{chan int} denotes a channel that supports both sending and receiving.
+\end{itemize}
+
+In this example, the consumer runs in the main goroutine, so the program does not need an additional synchronisation mechanism to wait for the consumer to finish.\\
+
+Closing a channel indicates that no further values will be sent. Closing a channel does not destroy it, and receivers can continue receiving buffered values after closure. Sending on a closed channel causes a run-time panic, as does closing an already closed channel. Conventionally, the sender responsible for producing values also closes the channel when appropriate.\\
+
+Channels may also be buffered:
+
+\begin{lstlisting}
+ch := make(chan int, 3)
+\end{lstlisting}
+
+This channel can hold up to three integers without requiring a receiver to be ready immediately. A send blocks when the buffer is full, and a receive blocks when the buffer is empty and the channel remains open.\\
+
+Buffered channels can decouple producers from consumers to a limited extent, but they do not eliminate the need for coordination. An appropriately chosen buffer capacity depends on the workload and desired back-pressure behaviour.\\
+
+\subsection{Synchronisation and Shared Memory}
+
+Goroutines may communicate through channels or share memory protected by synchronisation primitives. Go supports several mechanisms for coordinating access to shared state, including mutexes, read-write mutexes, wait groups, atomic operations and condition variables.\\
+
+A mutex prevents multiple goroutines from accessing a protected critical section simultaneously when the relevant code follows the locking protocol.
+
+\begin{lstlisting}
+package main
+
+import (
+    "fmt"
+    "sync"
+)
+
+func main() {
+    var mu sync.Mutex
+    counter := 0
+    var wg sync.WaitGroup
+
+    for i := 0; i < 1000; i++ {
+        wg.Add(1)
+
+        go func() {
+            defer wg.Done()
+
+            mu.Lock()
+            counter++
+            mu.Unlock()
+        }()
+    }
+
+    wg.Wait()
+    fmt.Println(counter)
+}
+\end{lstlisting}
+
+The expected output is \texttt{1000}. The mutex ensures that each increment is performed within a mutually exclusive critical section. Without appropriate synchronisation, concurrent increments could interfere with one another, producing a data race and potentially an incorrect result.\\
+
+A data race occurs when multiple goroutines access the same memory location concurrently, at least one access is a write, and the accesses are not properly synchronised. Data races are not merely logical errors: in Go, programs containing data races can exhibit unexpected behaviour.\\
+
+The Go memory model defines the conditions under which writes performed by one goroutine become observable by another. Synchronisation operations establish \textit{happens-before} relationships, which are essential for reasoning about the visibility and ordering of memory operations.\\
+
+For example, unlocking a mutex synchronises with a subsequent successful lock of the same mutex. Likewise, channel operations and certain atomic operations establish ordering guarantees specified by the memory model.\\
+
+It is not sufficient for two goroutines merely to execute in a particular order during testing. Correctness must follow from explicit synchronisation guarantees.
+
+\subsection{Goroutine Lifecycle and Cancellation}
+
+A goroutine normally begins when a \texttt{go} statement invokes a function and ends when that function returns. Go does not provide a general mechanism for forcibly terminating an arbitrary goroutine safely from another goroutine.\\
+
+Consequently, long-running goroutines should be designed to terminate cooperatively. A common approach uses the \texttt{context} package to propagate cancellation and deadlines.
+
+\begin{lstlisting}
+package main
+
+import (
+    "context"
+    "fmt"
+    "time"
+)
+
+func worker(ctx context.Context) {
+    for {
+        select {
+        case <-ctx.Done():
+            fmt.Println("Worker cancelled")
+            return
+
+        case <-time.After(100 * time.Millisecond):
+            fmt.Println("Worker is running")
+        }
+    }
+}
+
+func main() {
+    ctx, cancel := context.WithCancel(
+        context.Background(),
+    )
+
+    go worker(ctx)
+
+    time.Sleep(350 * time.Millisecond)
+    cancel()
+
+    time.Sleep(50 * time.Millisecond)
+}
+\end{lstlisting}
+
+The call to \texttt{cancel()} closes the context's cancellation signal, allowing the worker to detect cancellation through \texttt{ctx.Done()} and return.\\
+
+This example is illustrative; the final sleep does not guarantee that the worker has terminated before the program exits. A production implementation should coordinate shutdown using a wait group, a completion channel or another explicit synchronisation mechanism.\\
+
+Cancellation is cooperative. A goroutine that does not inspect its context or otherwise respond to cancellation will not stop merely because its context has been cancelled. Similarly, cancellation does not automatically interrupt every blocking operation; the operation must support cancellation, or the surrounding code must provide another way to unblock it.\\
+
+Failure to terminate goroutines when they are no longer required can cause goroutine leaks. Such leaks can retain memory, keep resources open and increase the cost of running a long-lived application.\\
+
+\subsection{Error Handling in Concurrent Programs}
+
+Errors in a goroutine are not automatically returned to the goroutine that created it. If a worker function encounters an error, the program must explicitly communicate that error, for example through a channel or a structured concurrency mechanism.\\
+
+The following example demonstrates returning errors through a channel:
+
+\begin{lstlisting}
+package main
+
+import (
+    "errors"
+    "fmt"
+)
+
+func performTask(errCh chan<- error) {
+    errCh <- errors.New("task failed")
+}
+
+func main() {
+    errCh := make(chan error, 1)
+
+    go performTask(errCh)
+
+    if err := <-errCh; err != nil {
+        fmt.Println("Error:", err)
+    }
+}
+\end{lstlisting}
+
+The buffered channel allows the worker to send its error without requiring a receiver to be waiting at that exact moment. The main goroutine receives the error and handles it.\\
+
+In more complex programs, the \texttt{errgroup} abstraction from the external package \texttt{golang.org/x/sync/errgroup} can simplify the management of related goroutines, error propagation and cancellation. It is particularly useful when several concurrent operations belong to a single logical task.\\
+
+An unhandled panic in a goroutine is not equivalent to a returned error. A panic that remains unrecovered can terminate the entire process, even if it occurs in a goroutine other than the main goroutine. Recovery using \texttt{recover} is effective only when called from a deferred function in the same goroutine in which the panic is unwinding.\\
+
+\subsection{Common Pitfalls and Best Practices}
+
+Although goroutines simplify concurrent programming, they do not eliminate the difficulties associated with concurrency. Several practices are particularly important.
+
+\begin{itemize}
+    \item \textbf{Avoid arbitrary sleeps for synchronisation.} Use wait groups, channels, contexts or other appropriate coordination mechanisms.
+    \item \textbf{Protect shared mutable state.} Use mutexes, atomic operations or a channel-based design to prevent data races.
+    \item \textbf{Control goroutine lifetimes.} Ensure that goroutines have a defined completion or cancellation mechanism.
+    \item \textbf{Limit concurrency when necessary.} A large number of simultaneous tasks can overwhelm databases, external services, memory or other system resources.
+    \item \textbf{Avoid channel deadlocks.} Ensure that blocking sends and receives have corresponding operations that can make progress.
+    \item \textbf{Use the race detector.} Execute tests with \texttt{go test -race} to identify many classes of data races.
+    \item \textbf{Measure performance.} Use profiling and benchmarking to determine whether concurrency improves the actual workload rather than assuming that more goroutines always produce better performance.
+\end{itemize}
+
+For workloads involving large numbers of independent jobs, a worker pool can limit the number of concurrently executing tasks. Instead of launching one goroutine for every item without restriction, a fixed number of workers can consume jobs from a channel. This provides a mechanism for controlling resource consumption and applying back-pressure.\\
+
+The appropriate number of workers depends on the nature of the workload. CPU-bound jobs may benefit from a worker count related to available processing capacity, whereas I/O-bound jobs may benefit from greater concurrency, provided that external resources can support it.
+
+\subsection{Conclusion}
+
+Goroutines are a fundamental abstraction for concurrent programming in Go. They provide lightweight execution units managed by the Go runtime, which schedules them across operating-system threads and available processor resources. Their low creation overhead makes them suitable for a wide range of applications, including concurrent network servers, background processing, parallel computation, and asynchronous task execution.\\
+
+However, goroutines must be deliberately managed. Correct concurrent programs require explicit coordination, safe access to shared memory, error propagation and well-defined termination behaviour. Channels, mutexes, wait groups, contexts and related synchronisation primitives provide the mechanisms needed to achieve these objectives.\\
+
+The principal advantage of goroutines is therefore not simply that they are lightweight threads, but that they form part of a programming model that combines concurrent execution with built-in communication and synchronisation facilities. When these facilities are used correctly, goroutines enable Go applications to be both scalable and maintainable.

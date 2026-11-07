@@ -1,0 +1,577 @@
+\section{Concurrency in Programming Languages}
+
+Concurrency is a fundamental concept in computer science that describes the ability of a programme to manage multiple tasks whose execution periods overlap. A concurrent programme is structured so that several activities can make progress during the same overall period, although they do not necessarily execute simultaneously. Concurrency is particularly important in applications that perform input and output operations, process multiple requests, interact with distributed systems, or manage several independent computational activities.
+
+Concurrency is closely related to, but distinct from, parallelism. Concurrency concerns the organisation and coordination of multiple tasks, whereas parallelism concerns the simultaneous execution of multiple operations. A concurrent programme may execute on a single processor by interleaving tasks, while a parallel programme typically uses multiple processing resources to execute operations at the same time. A programme can support concurrency without achieving parallel execution, and concurrent tasks may be executed in parallel when suitable hardware and runtime support are available.
+
+Programming languages provide different abstractions for expressing concurrency, including threads, processes, asynchronous functions, coroutines, message-passing systems, and event-driven execution models. Each approach introduces different trade-offs involving performance, resource consumption, complexity, and reliability.
+
+This section describes the fundamental principles of concurrency, its principal execution models, its advantages and disadvantages, and the common pitfalls encountered when designing and implementing concurrent software.
+
+\subsection{Fundamental Concepts of Concurrency}
+
+Concurrency involves structuring a programme as a collection of tasks that can progress independently or interact with one another. A task may represent a computational operation, a network request, a background process, or an individual user request handled by a server.
+
+In a sequential programme, operations generally execute in a predetermined order:
+
+\begin{lstlisting}
+readData()
+processData()
+writeResults()
+\end{lstlisting}
+
+The second operation begins after the first has completed, and the third begins after the second has completed.
+
+A concurrent design may allow independent activities to overlap:
+
+\begin{lstlisting}
+startReadTask()
+startNetworkTask()
+waitForCompletion()
+\end{lstlisting}
+
+In this conceptual example, the reading and network operations can progress independently, subject to the synchronisation and coordination mechanisms used by the programme.
+
+The actual execution order of concurrent tasks may depend on operating-system scheduling, processor availability, runtime behaviour, and the completion of external operations. Consequently, the order in which tasks start does not necessarily determine the order in which they finish.
+
+A central challenge in concurrent programming is ensuring that the interactions between tasks preserve the correctness of the overall system.
+
+\subsection{Concurrency and Parallelism}
+
+Concurrency and parallelism are related concepts, but they describe different properties of program execution.
+
+\begin{itemize}
+    \item \textbf{Concurrency} is the ability to organise and manage multiple tasks whose execution overlaps in time.
+    \item \textbf{Parallelism} is the simultaneous execution of multiple operations on separate processing resources.
+\end{itemize}
+
+For example, a web server may handle several client requests concurrently. When one request waits for a database response, another request can be processed. This arrangement can improve responsiveness even when the processor executes only one instruction stream at a time.
+
+Parallelism occurs when multiple processor cores execute instructions belonging to different tasks simultaneously. Computationally intensive operations, such as image processing or scientific simulations, may benefit substantially from this form of execution.
+
+Concurrency and parallelism can be represented conceptually as follows:
+
+\begin{lstlisting}
+Concurrent execution:
+
+Task A: |--- running ---| waiting |--- running ---|
+Task B:      |--- running ---| waiting |--- running ---|
+
+Parallel execution:
+
+Task A: |---------- running ----------|
+Task B: |---------- running ----------|
+           Both execute simultaneously
+\end{lstlisting}
+
+The first example illustrates overlapping task lifetimes, while the second illustrates simultaneous execution.
+
+Concurrency is especially valuable for managing independent activities and waiting periods. Parallelism is particularly valuable when a problem can be divided into computational tasks that execute efficiently at the same time.
+
+\subsection{Processes and Threads}
+
+Processes and threads are common operating-system abstractions for concurrent execution.
+
+\subsubsection{Processes}
+
+A process is an executing instance of a programme with its own address space and associated operating-system resources. Separate processes are generally isolated from one another, although they can communicate through mechanisms such as pipes, sockets, shared memory, and message queues.
+
+Process-based concurrency offers several advantages:
+
+\begin{itemize}
+    \item Isolation between independent applications or components.
+    \item Reduced exposure to accidental modification of another process's memory.
+    \item The ability to execute separate programmes concurrently.
+    \item Improved fault containment when one process fails independently of others.
+\end{itemize}
+
+However, processes usually require more resources to create and manage than lightweight execution tasks within a single process. Inter-process communication can also introduce serialisation costs, context-switching overhead, and additional complexity.
+
+Processes are commonly used for application isolation, service architectures, worker pools, and distributed computing systems.
+
+\subsubsection{Threads}
+
+A thread is an execution path within a process. Multiple threads in the same process share its address space and many of its resources, while maintaining separate execution state, including their own stacks and processor execution contexts.
+
+Threads allow several tasks to operate within the same application without requiring separate processes. They can communicate efficiently through shared memory, but that shared memory also creates risks when several threads access mutable data simultaneously.
+
+For example, two threads might attempt to update the same counter. Without appropriate synchronisation, their operations can interfere with one another and produce an incorrect result.
+
+Thread-based concurrency is supported by many programming languages and operating systems. Languages differ in how threads are created, scheduled, synchronised, and integrated with higher-level abstractions.
+
+\subsection{Asynchronous Programming and Event-Driven Execution}
+
+Asynchronous programming allows a programme to initiate an operation and continue performing other work while the operation is incomplete. When the operation finishes, the programme processes its result or failure.
+
+This model is particularly useful for input and output operations, including network communication, file access, and database queries.
+
+For example, an asynchronous operation can be expressed conceptually as:
+
+\begin{lstlisting}
+result = await fetchData()
+process(result)
+\end{lstlisting}
+
+The exact meaning of \texttt{await} depends on the language and runtime. In languages with asynchronous tasks or coroutines, execution may suspend while the operation is waiting, allowing other tasks to progress.
+
+An event-driven system uses events to trigger the execution of handlers. Events may represent completed network operations, incoming messages, timer notifications, or user interactions.
+
+An event loop commonly performs the following activities:
+
+\begin{enumerate}
+    \item Waits for one or more events.
+    \item Identifies the appropriate handler for each event.
+    \item Executes the handler or schedules it for execution.
+    \item Returns to waiting for additional events.
+\end{enumerate}
+
+Event-driven execution can support a large number of concurrent connections with relatively few operating-system threads. However, blocking operations performed directly within a single event loop can delay unrelated tasks. The design must therefore ensure that long-running operations do not unnecessarily prevent the event loop from processing other events.
+
+Asynchronous programming does not automatically imply parallel execution. An asynchronous operation may simply suspend one task while another executes on the same thread.
+
+\subsection{Coroutines and Lightweight Tasks}
+
+Coroutines are execution units that can suspend and resume their progress. Unlike ordinary function calls, which typically return control to their caller when they finish, coroutines can yield control temporarily and later continue from their suspended state.
+
+Coroutines are useful for representing long-lived activities, asynchronous workflows, generators, and cooperative multitasking systems.
+
+A coroutine-based programme might express a task as follows:
+
+\begin{lstlisting}
+async function downloadResource() {
+    response = await requestResource()
+    return processResponse(response)
+}
+\end{lstlisting}
+
+This is illustrative pseudocode rather than a complete programme in a particular language.
+
+Lightweight tasks are related abstractions that allow large numbers of concurrent activities to be managed with less overhead than would be required for an equivalent number of operating-system threads. Their scheduling may be handled by a language runtime rather than directly by the operating system.
+
+For example, Go provides goroutines, which are lightweight concurrent execution units scheduled by the Go runtime. Other languages provide related abstractions, including tasks, futures, promises, and coroutines.
+
+Lightweight execution units can make concurrent designs easier to express. Nevertheless, they do not eliminate the need to manage shared state, cancellation, resource usage, and synchronisation.
+
+\subsection{Communication Between Concurrent Tasks}
+
+Concurrent tasks frequently need to exchange information or coordinate their progress. Two broad approaches are shared-memory communication and message passing.
+
+\subsubsection{Shared-Memory Communication}
+
+In shared-memory concurrency, multiple tasks access a common data structure or memory region.
+
+For example, two threads may access a shared counter:
+
+\begin{lstlisting}
+shared counter = 0
+
+Thread A:
+    counter = counter + 1
+
+Thread B:
+    counter = counter + 1
+\end{lstlisting}
+
+Although each thread intends to increment the counter, the update may involve several underlying operations, including reading the current value, calculating the incremented value, and storing the result.
+
+If these operations interleave without suitable synchronisation, one update may overwrite the other. The final value may therefore be \(1\) rather than the expected value \(2\).
+
+Shared-memory communication can be efficient because tasks can access common data without serialising and transmitting messages. However, it requires careful management of concurrent access.
+
+\subsubsection{Message Passing}
+
+Message passing allows tasks to communicate by sending data or notifications through an explicit communication mechanism. Examples include channels, queues, mailboxes, sockets, and message brokers.
+
+A conceptual example is:
+
+\begin{lstlisting}
+Producer:
+    send(messageQueue, data)
+
+Consumer:
+    data = receive(messageQueue)
+    process(data)
+\end{lstlisting}
+
+The producer and consumer communicate through the queue rather than directly modifying the same application data structure.
+
+Message passing can reduce direct sharing of mutable state and can make task ownership and communication boundaries clearer. However, it introduces other concerns, including queue capacity, message ordering, delivery guarantees, backpressure, and communication failures.
+
+Message passing does not automatically eliminate data races or deadlocks. Its safety depends on the semantics of the communication mechanism and the overall design.
+
+\subsection{Synchronisation Mechanisms}
+
+Synchronisation coordinates concurrent tasks and establishes rules governing access to shared resources. Common mechanisms include mutexes, semaphores, condition variables, atomic operations, barriers, and channels.
+
+\subsubsection{Mutexes}
+
+A mutual exclusion lock, commonly called a mutex, ensures that only one task at a time can enter a protected critical section.
+
+A critical section is a portion of a programme that accesses shared state and must not be executed concurrently by conflicting operations.
+
+Conceptually, a mutex is used as follows:
+
+\begin{lstlisting}
+lock(mutex)
+sharedCounter = sharedCounter + 1
+unlock(mutex)
+\end{lstlisting}
+
+The lock prevents another participating task from entering the protected section while the first task holds the mutex.
+
+In practice, the lock should be released even if the operation exits unexpectedly. Many languages provide structured mechanisms, such as scoped locks or deferred cleanup, to reduce the risk of leaving a mutex locked.
+
+Mutexes provide a straightforward mechanism for protecting shared mutable state, but excessive locking can reduce concurrency and introduce deadlocks.
+
+\subsubsection{Semaphores}
+
+A semaphore maintains a counter representing the number of available permits for a resource or operation. A task acquires a permit before proceeding and releases it when the resource is no longer in use.
+
+A counting semaphore can limit the number of tasks accessing a resource concurrently. For example, a database connection pool may permit only a fixed number of simultaneous operations.
+
+Semaphores are useful for controlling access to bounded resources. However, incorrect permit management can cause tasks to wait indefinitely or allow more concurrent operations than intended.
+
+\subsubsection{Condition Variables}
+
+Condition variables allow a task to wait until a condition involving shared state may have changed. Another task can notify waiting tasks after modifying that state.
+
+For example, a consumer may wait until a queue contains an item before removing it.
+
+The condition must normally be checked in a loop while holding the associated lock, because waking does not necessarily mean that the required condition is true when the task resumes.
+
+Condition variables are useful when progress depends on a particular state transition rather than simply on exclusive access to a resource.
+
+\subsubsection{Atomic Operations}
+
+Atomic operations perform specific operations on shared variables without exposing intermediate states to competing tasks. Depending on the language and hardware, atomic operations may include reading, writing, exchanging, or conditionally updating a value.
+
+For example, an atomic increment can safely update a shared counter without using a conventional mutex, provided the counter and operation use the appropriate atomic API.
+
+Atomic operations can be efficient for simple coordination tasks. However, they are not a general replacement for locks: complex invariants involving several variables may require a mutex or another coordination mechanism.
+
+Correct use of atomic operations also depends on the language's memory model, which specifies the visibility and ordering guarantees provided between concurrent executions.
+
+\subsection{Advantages of Concurrency}
+
+Concurrency offers several benefits when tasks can be executed independently or when operations spend substantial time waiting for external events.
+
+\subsubsection{Improved Responsiveness}
+
+Concurrent execution allows an application to continue processing other work while one task is waiting. This is particularly useful in graphical applications, servers, and interactive systems.
+
+For example, a user interface can remain responsive while a background task downloads data or processes a large file. Without concurrency, the main execution path might remain occupied until the operation completes.
+
+\subsubsection{Improved Resource Utilisation}
+
+Concurrency can improve the utilisation of processors, storage systems, network interfaces, and other resources.
+
+When one task is blocked by input and output, another task may use the available processing capacity. This can increase the amount of useful work completed during a given period.
+
+The benefit is especially significant in input-output-intensive systems, where tasks frequently wait for external services.
+
+\subsubsection{Higher Throughput}
+
+Throughput is the amount of work completed during a given period. A concurrent server may handle multiple requests at once rather than completing every request before starting the next.
+
+If requests are largely independent, this arrangement can increase the number of requests processed per second.
+
+However, the improvement depends on the available resources and the workload. A database that is already saturated, for example, may not process requests faster merely because more concurrent requests are submitted.
+
+\subsubsection{Scalability}
+
+Concurrent designs can make it possible to scale applications by increasing the number of workers, threads, processor cores, or distributed service instances.
+
+A task-processing system might use a pool of workers to process independent jobs. Increasing the pool size can improve throughput when sufficient resources remain available.
+
+Scalability is not unlimited. Shared resources, communication overhead, contention, and coordination costs can reduce the benefit of adding more workers.
+
+\subsubsection{Separation of Responsibilities}
+
+Concurrency can provide a natural structure for applications that contain independent activities.
+
+For example, a monitoring application may use separate tasks to collect metrics, receive network events, update internal state, and report results.
+
+Separating these activities can improve modularity when communication between tasks is clearly defined. However, excessive decomposition can create unnecessary coordination and make the overall system more difficult to understand.
+
+\subsection{Disadvantages of Concurrency}
+
+Despite its advantages, concurrency introduces additional complexity that can make software harder to implement, test, and maintain.
+
+\subsubsection{Increased Design Complexity}
+
+Sequential programmes often have a relatively predictable execution order. Concurrent programmes must account for several possible interleavings of operations.
+
+A defect may occur only when a particular timing relationship arises. Consequently, a programme may appear correct during normal testing but fail under heavy load or unusual scheduling conditions.
+
+Developers must reason about task lifetimes, dependencies, shared resources, synchronisation, cancellation, and failure handling.
+
+\subsubsection{Synchronisation Overhead}
+
+Locks, atomic operations, context switching, message transmission, and task scheduling all introduce overhead.
+
+If a concurrent design requires frequent coordination, the overhead may outweigh the benefits of executing tasks independently.
+
+For small computational operations, a sequential implementation may be faster because it avoids the costs associated with task creation and synchronisation.
+
+\subsubsection{Resource Consumption}
+
+Concurrent execution consumes resources such as memory, stacks, thread-management structures, queues, and network connections.
+
+Creating too many concurrent tasks may exhaust available resources or increase scheduling overhead. A programme may also retain memory longer than expected if tasks remain blocked or references to their results are not released.
+
+Concurrency therefore requires resource limits and appropriate lifecycle management.
+
+\subsubsection{Difficult Testing and Debugging}
+
+Concurrent defects may depend on timing, processor scheduling, network delays, or external system behaviour. These dependencies can make failures difficult to reproduce.
+
+A test that passes repeatedly on one machine may fail under a different workload or on hardware with a different number of processor cores.
+
+Specialised tools, such as race detectors, concurrency-aware debuggers, tracing systems, and stress tests, can help identify defects. Nevertheless, the absence of observed failures does not prove that a concurrent programme is correct.
+
+\subsubsection{Potentially Reduced Performance}
+
+Concurrency does not guarantee better performance. It may reduce performance when tasks compete for shared resources, create excessive synchronisation, or perform work that could have been executed more efficiently in sequence.
+
+For example, if several workers repeatedly acquire the same mutex, they may spend a substantial proportion of their execution time waiting for one another.
+
+Performance improvements should therefore be measured rather than assumed.
+
+\subsection{Race Conditions}
+
+A race condition occurs when the correctness of a programme depends on the relative timing or ordering of concurrent operations.
+
+A common example is a check-then-act operation:
+
+\begin{lstlisting}
+if resourceIsAvailable() {
+    acquireResource()
+}
+\end{lstlisting}
+
+If checking availability and acquiring the resource are not performed as one coordinated operation, another task may acquire the resource between these steps.
+
+The first task may then proceed using an assumption that is no longer valid.
+
+Race conditions are broader than data races. A race condition describes a timing-dependent correctness problem, while a data race is a specific form of unsynchronised conflicting memory access.
+
+To prevent such problems, related operations should be made atomic at the level required by the application's logic, or protected by an appropriate synchronisation mechanism.
+
+\subsection{Data Races}
+
+A data race occurs when two or more concurrent execution paths access the same memory location, at least one access is a write, and the accesses are not ordered by the synchronisation rules of the programming language.
+
+Consider the following pseudocode:
+
+\begin{lstlisting}
+shared balance = 100
+
+Task A:
+    balance = balance + 20
+
+Task B:
+    balance = balance - 10
+\end{lstlisting}
+
+If the updates are not synchronised, one task may overwrite the result produced by the other. The final balance may not equal the expected value of \(110\).
+
+Data races can be prevented through mechanisms such as:
+
+\begin{itemize}
+    \item Mutual exclusion locks.
+    \item Atomic operations with appropriate memory-ordering guarantees.
+    \item Ownership models that prevent conflicting access.
+    \item Message passing that transfers ownership or coordinates access.
+    \item Immutable data structures that are safely shared between tasks.
+\end{itemize}
+
+The correct mechanism depends on the language, the data structure, and the consistency requirements of the application.
+
+A programme can contain race conditions even when it has no data races. For example, two properly synchronised operations may still occur in an incorrect logical order.
+
+\subsection{Deadlocks}
+
+A deadlock occurs when two or more tasks are unable to proceed because each is waiting for a resource or event that another task must provide.
+
+A common example involves two mutexes:
+
+\begin{lstlisting}
+Task A:
+    lock(mutex1)
+    lock(mutex2)
+
+Task B:
+    lock(mutex2)
+    lock(mutex1)
+\end{lstlisting}
+
+If Task A acquires \texttt{mutex1} while Task B acquires \texttt{mutex2}, each task may wait indefinitely for the lock held by the other.
+
+Deadlocks can be reduced by adopting consistent lock-ordering rules. For example, every task can be required to acquire \texttt{mutex1} before \texttt{mutex2}.
+
+Other techniques include reducing nested locking, using timeouts where appropriate, and designing communication protocols that do not require circular waiting.
+
+Deadlocks may also occur in systems that use channels, futures, or distributed communication. A task can become permanently blocked while waiting for a message that can never arrive.
+
+\subsection{Livelocks and Starvation}
+
+A livelock occurs when tasks continue executing but repeatedly react to one another in ways that prevent useful progress.
+
+For example, two tasks may repeatedly release a resource to allow the other task to proceed, only to repeat the same interaction indefinitely.
+
+Unlike a deadlock, a livelock involves ongoing activity, but the system does not achieve its intended result.
+
+Starvation occurs when a task is repeatedly denied access to the resources or execution opportunities it requires. Other tasks may continue making progress while the starved task waits indefinitely or for an unacceptably long period.
+
+These problems can arise from unfair scheduling, inappropriate priority assignments, contention, or poorly designed retry strategies.
+
+Fair locking policies, bounded retries, back-off strategies, and explicit resource-allocation rules can reduce the likelihood of starvation and livelock.
+
+\subsection{Incorrect Assumptions About Execution Order}
+
+A frequent source of concurrency defects is the assumption that tasks execute in the order in which they are created or that a task will finish before another task begins.
+
+Consider the following pseudocode:
+
+\begin{lstlisting}
+startTask(produceData)
+startTask(consumeData)
+\end{lstlisting}
+
+The consumer may execute before the producer has generated the required data. If the consumer assumes that the data is already available, the programme may behave incorrectly.
+
+Correct coordination requires an explicit dependency mechanism, such as a channel, a future, a condition variable, a synchronisation barrier, or a task-joining operation.
+
+A task should not rely on incidental timing, processor speed, or observed behaviour from previous executions.
+
+\subsection{Memory Visibility and Ordering}
+
+In concurrent systems, one task's updates to shared memory may not become visible to another task in the manner expected unless the required synchronisation rules are satisfied.
+
+Modern processors and compilers may reorder operations when permitted by the applicable language and hardware memory models. Consequently, the order of statements in the source code does not always establish the visibility guarantees required between concurrent tasks.
+
+For example, one task may update a shared data structure while another task reads it. Without an appropriate synchronisation mechanism, the reader may not observe the update according to the intended ordering.
+
+Locks, correctly used atomic operations, and other language-defined synchronisation mechanisms establish the ordering guarantees required for safe communication.
+
+The precise guarantees differ between languages. Developers should therefore follow the memory model of the language they are using rather than assuming that the behaviour of one language applies to another.
+
+\subsection{Resource Leaks and Uncontrolled Task Creation}
+
+Concurrent programmes can leak resources when tasks remain active after their results are no longer needed or when they become permanently blocked.
+
+For example, a server may create a new worker for every incoming request without imposing a limit. If requests arrive faster than they can be processed, the number of active workers may grow until memory, file descriptors, connections, or other resources are exhausted.
+
+A related problem occurs when a task waits indefinitely for a message from a producer that has terminated.
+
+These problems can be addressed by:
+
+\begin{itemize}
+    \item Limiting the number of active tasks or workers.
+    \item Applying backpressure when work arrives faster than it can be processed.
+    \item Defining explicit task cancellation and shutdown procedures.
+    \item Using timeouts for operations that may otherwise wait indefinitely.
+    \item Ensuring that communication channels and other resources have clear ownership and lifecycle rules.
+    \item Monitoring queue sizes, task counts, memory use, and blocked operations.
+\end{itemize}
+
+Concurrency should be designed with failure and shutdown behaviour in mind, not only with successful execution in mind.
+
+\subsection{Exception and Error Handling in Concurrent Systems}
+
+Concurrent systems must define how failures are reported and how other tasks respond when an operation fails.
+
+In a sequential programme, an error can often be returned directly to the caller. In a concurrent programme, the task responsible for detecting an error may not be the task responsible for coordinating the overall operation.
+
+Consequently, errors may need to be communicated through channels, futures, promises, shared result structures, callbacks, or task-management facilities.
+
+A concurrent workflow should establish whether an error:
+
+\begin{itemize}
+    \item Affects only the task in which it occurs.
+    \item Requires other tasks to be cancelled.
+    \item Should trigger a retry.
+    \item Must be propagated to a coordinating component.
+    \item Requires the entire operation to be abandoned.
+\end{itemize}
+
+Retries should be used with care. If a failed operation has already produced an external side effect, repeating it may duplicate that effect unless the operation is idempotent or protected by an appropriate deduplication mechanism.
+
+Cancellation must also be coordinated. Requesting a task stop does not necessarily terminate it immediately; the task must observe the cancellation mechanism and release any resources it has.
+
+\subsection{Testing and Debugging Concurrent Programmes}
+
+Testing concurrent programmes is challenging because many defects depend on particular execution schedules or timing conditions.
+
+A concurrent test suite should verify not only the final output, but also the required coordination properties, resource limits, failure handling, and cancellation behaviour.
+
+Useful techniques include:
+
+\begin{itemize}
+    \item Stress testing using different workloads.
+    \item Repeating tests to increase the likelihood of exposing intermittent defects.
+    \item Using race detectors where supported.
+    \item Testing timeouts, cancellations, and shutdown sequences.
+    \item Instrumenting task execution and communication with logs or tracing.
+    \item Testing boundary conditions such as empty queues, full queues, and unavailable resources.
+    \item Using deterministic scheduling or specialised concurrency-testing tools where available.
+\end{itemize}
+
+For example, a test may create several workers that increment a shared counter. The test can verify that the final value matches the expected number of increments. A race detector may then help identify unsynchronised accesses that could cause incorrect results under different execution schedules.
+
+However, testing cannot generally explore all possible interleaving of concurrent operations. Formal reasoning, invariant checking, and careful design remain important even when a comprehensive test suite is available.
+
+\subsection{Strategies for Designing Reliable Concurrent Systems}
+
+Reliable concurrency depends on controlling interactions between tasks and limiting unnecessary shared state.
+
+Several design principles are particularly useful:
+
+\begin{itemize}
+    \item \textbf{Minimise shared mutable state.} Prefer designs in which tasks own their data or communicate through well-defined interfaces.
+    \item \textbf{Define ownership explicitly.} Establish which task is responsible for creating, modifying, and releasing each resource.
+    \item \textbf{Keep critical sections small.} Protect only the operations that require coordination, avoiding unnecessary lock contention.
+    \item \textbf{Use consistent locking rules.} Establish a global lock order when multiple locks must be acquired.
+    \item \textbf{Bound resource consumption.} Limit workers, queues, outstanding requests, and other potentially growing resources.
+    \item \textbf{Design cancellation and shutdown early.} Ensure that tasks can stop without leaking resources or leaving shared state inconsistent.
+    \item \textbf{Prefer simple coordination mechanisms.} Use the least complicated model that satisfies the application's requirements.
+    \item \textbf{Measure performance.} Benchmark the concurrent implementation against a sequential alternative and identify actual bottlenecks.
+    \item \textbf{Make failure behaviour explicit.} Define how errors, timeouts, retries, and partial completion are handled.
+    \item \textbf{Document concurrency assumptions.} Explain which data may be shared, which operations are thread-safe, and what ordering guarantees are required.
+\end{itemize}
+
+These principles reduce the number of possible interactions that developers must consider and help make concurrent programmes easier to test and maintain.
+
+\subsection{Choosing Between Sequential and Concurrent Execution}
+
+Concurrency should be introduced when it provides a measurable or architectural benefit rather than being treated as an automatic improvement.
+
+Sequential execution is often appropriate when operations are dependent, computationally inexpensive, or naturally expressed as a simple sequence. It usually offers simpler control flow and easier reasoning about program state.
+
+Concurrency is often appropriate when tasks are independent, when operations spend significant time waiting, or when an application must handle many simultaneous requests.
+
+Parallel execution is particularly useful when computational work can be divided into independent units and the cost of coordination remains small relative to the work performed.
+
+The choice depends on several factors:
+
+\begin{itemize}
+    \item The computational or input-output characteristics of the workload.
+    \item The degree of independence between tasks.
+    \item The number of processors and other resources available.
+    \item The overhead of task creation and coordination.
+    \item The importance of responsiveness and throughput.
+    \item The complexity and reliability requirements of the system.
+\end{itemize}
+
+A sensible development process begins with a correct and measurable implementation, identifies performance or responsiveness limitations, and introduces concurrency where its benefits justify the additional complexity.
+
+\subsection{Conclusion}
+
+Concurrency is a programming technique that allows multiple tasks to progress during overlapping periods of execution. It is widely used to improve responsiveness, resource utilisation, throughput, and scalability in applications that perform independent computations or interact with external systems.
+
+Programming languages support concurrency through a variety of mechanisms, including processes, threads, asynchronous functions, coroutines, lightweight tasks, shared memory, and message passing. Synchronisation mechanisms such as mutexes, semaphores, condition variables, and atomic operations help coordinate these tasks and protect shared state.
+
+However, concurrency introduces significant challenges. Race conditions, data races, deadlocks, livelocks, starvation, incorrect assumptions about execution order, memory-visibility problems, and resource leaks can all undermine correctness and reliability. Concurrent systems can also incur additional overhead and may perform worse than sequential implementations when coordination costs exceed the benefits.
+
+Successful concurrent programming therefore requires explicit coordination, careful resource management, well-defined ownership, robust error handling, and systematic testing. By selecting an appropriate concurrency model and keeping interactions between tasks as simple as possible, developers can build systems that are efficient and maintainable.
+

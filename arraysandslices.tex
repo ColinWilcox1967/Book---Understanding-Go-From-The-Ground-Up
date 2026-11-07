@@ -1,0 +1,447 @@
+\section{Arrays and Slices in the Go Programming Language}
+
+Arrays and slices are fundamental data structures in the Go programming language, used to store and manipulate collections of elements. They provide mechanisms for organising data, accessing individual elements by index, and iterating over collections efficiently. Although arrays and slices have similar indexing syntax, they differ significantly in their structure, size characteristics, memory representation, and behaviour when passed to functions.\\
+
+An array is a fixed-length sequence of elements of a single type, whereas a slice is a dynamically sized, flexible view of an underlying array. Arrays are useful when the number of elements is known and remains constant, while slices are generally preferred for collections whose lengths may change during program execution.
+
+\subsection{Arrays}
+
+An array in Go is a numbered sequence of elements of a specified type. Its length is part of its type, meaning that arrays with different lengths are distinct types, even when their element types are identical. The length of an array cannot be changed after its declaration.\\
+
+An array declaration specifies the number of elements and their type. The general syntax is:
+
+\begin{lstlisting}
+var arrayName [length]ElementType
+\end{lstlisting}
+
+For example, the following declaration creates an array containing five integers:
+
+\begin{lstlisting}
+var numbers [5]int
+\end{lstlisting}
+
+The array contains five elements, each of type \texttt{int}. If no explicit initial values are provided, the elements are assigned the zero value of their respective type. For an integer array, every element is initially zero.
+
+\subsubsection{Array Initialisation}
+
+Arrays can be initialised using array literals, which allow individual element values to be specified at the time of declaration.
+
+\begin{lstlisting}
+numbers := [5]int{10, 20, 30, 40, 50}
+\end{lstlisting}
+
+In this example, the array contains five integers. Go also permits the compiler to determine the array length from the number of elements in the literal by using an ellipsis.
+
+\begin{lstlisting}
+numbers := [...]int{10, 20, 30, 40, 50}
+\end{lstlisting}
+
+The compiler determines that the array has a length of five. The resulting type is \texttt{[5]int}.\\
+
+Array literals may also specify the indices of selected elements explicitly:
+
+\begin{lstlisting}
+numbers := [6]int{
+    1: 10,
+    3: 30,
+    5: 50,
+}
+\end{lstlisting}
+
+The explicitly initialised elements receive the specified values, while the remaining elements retain their zero values.
+
+\subsubsection{Accessing and Modifying Array Elements}
+
+Array elements are accessed using zero-based indexing. The first element has index zero, and the final element has an index equal to the array length minus one.\\
+
+For example:
+
+\begin{lstlisting}
+numbers := [4]int{10, 20, 30, 40}
+
+fmt.Println(numbers[0]) // 10
+fmt.Println(numbers[2]) // 30
+
+numbers[1] = 25
+fmt.Println(numbers[1]) // 25
+\end{lstlisting}
+
+An element can be modified by assigning a new value to its index. Attempting to access an element outside the valid index range causes a run-time panic when the invalid index is not detected at compile time.\\
+
+For an array of length \(n\), the valid indices are defined by
+
+\[
+0 \leq i < n.
+\]
+
+\subsubsection{Iterating Over Arrays}
+
+The \texttt{for} statement can be used to iterate over array elements. The \texttt{range} form is particularly convenient because it provides the index and value of each element.
+
+\begin{lstlisting}
+numbers := [4]int{10, 20, 30, 40}
+
+for index, value := range numbers {
+    fmt.Println(index, value)
+}
+\end{lstlisting}
+
+The loop processes every array element in index order. If only the values are required, the index can be discarded using the blank identifier.
+
+\begin{lstlisting}
+for _, value := range numbers {
+    fmt.Println(value)
+}
+\end{lstlisting}
+
+Alternatively, a conventional three-clause \texttt{for} loop can be used when explicit control over the index is required.
+
+\subsubsection{Array Assignment and Value Semantics}
+
+Arrays in Go are value types. Assigning an array to another variable copies all its elements, producing an independent array value.
+
+\begin{lstlisting}
+original := [3]int{1, 2, 3}
+copyArray := original
+
+copyArray[0] = 100
+
+fmt.Println(original[0])  // 1
+fmt.Println(copyArray[0]) // 100
+\end{lstlisting}
+
+Modifying an element in \texttt{copyArray} does not affect the corresponding element in \texttt{original}. This behaviour is important when arrays are passed to functions or assigned between variables.\\
+
+When an array is passed as a function argument, its value is copied according to the normal argument-passing rules. For large arrays, this may introduce additional copying costs. Passing a pointer to an array can avoid copying the entire array when a function needs to access or modify the original array.
+
+\subsection{Slices}
+
+A slice is a descriptor that provides access to a contiguous sequence of elements in an underlying array. Unlike an array, a slice does not have a fixed length as part of its type. Its length can change during execution, subject to the available capacity and the operations performed on it.\\
+
+Slices are among the most commonly used collection types in Go because they provide a flexible interface for working with sequences of values without requiring the programmer to manage array storage directly.\\
+
+A slice type is written using square brackets with no length specified, followed by the element type.
+
+\begin{lstlisting}
+var numbers []int
+\end{lstlisting}
+
+This declaration creates a nil slice of integers. It has a length of zero and a capacity of zero, and it does not refer to an underlying array.
+
+\subsubsection{Slice Initialisation}
+
+A slice can be created using a slice literal. The syntax resembles an array literal, except that the length is not specified.
+
+\begin{lstlisting}
+numbers := []int{10, 20, 30, 40, 50}
+\end{lstlisting}
+
+The slice contains five integer elements. Go creates an underlying array to hold the literal's elements and initialises the slice to refer to that array.\\
+
+A slice can also be created using the built-in \texttt{make} function.
+
+\begin{lstlisting}
+numbers := make([]int, 5)
+\end{lstlisting}
+
+This creates a slice with a length of five and a capacity of five. Its elements are initialised to the zero value of the element type.\\
+
+The \texttt{make} function can additionally specify a capacity greater than the length:
+
+\begin{lstlisting}
+numbers := make([]int, 3, 8)
+\end{lstlisting}
+
+In this case, the slice has three accessible elements and a capacity of eight. The additional capacity allows elements to be appended without necessarily allocating a new underlying array.
+
+\subsubsection{Length and Capacity}
+
+Two important built-in functions used with slices are \texttt{len} and \texttt{cap}.
+
+\begin{itemize}
+    \item \texttt{len(slice)} returns the number of elements currently accessible through the slice.
+    \item \texttt{cap(slice)} returns the number of elements in the slice's underlying array, starting at the slice's first element and extending to the end of that array.
+\end{itemize}
+
+For example:
+
+\begin{lstlisting}
+numbers := make([]int, 3, 8)
+
+fmt.Println(len(numbers)) // 3
+fmt.Println(cap(numbers)) // 8
+\end{lstlisting}
+
+The length determines the valid element indices. The capacity indicates how far the slice can potentially be extended by reslicing before a new underlying array is required.\\
+
+Formally, for a slice with length \(l\) and capacity \(c\),
+
+\[
+0 \leq l \leq c.
+\]
+
+The capacity does not represent the number of elements currently contained in the slice. Instead, it represents the available extent of the underlying array from the slice's starting position.
+
+\subsubsection{Accessing and Modifying Slice Elements}
+
+Slice elements are accessed and modified using the same zero-based indexing syntax as array elements.
+
+\begin{lstlisting}
+numbers := []int{10, 20, 30}
+
+fmt.Println(numbers[0]) // 10
+
+numbers[1] = 25
+fmt.Println(numbers) // [10 25 30]
+\end{lstlisting}
+
+An index must be within the range from zero to \texttt{len(slice)-1}. Attempting to access an invalid index causes a run-time panic when it is not detected at compile time.\\
+
+A nil or empty slice has no valid element indices. However, a nil slice and a non-nil empty slice are distinct values, even though both have a length of zero.
+
+\subsubsection{Appending Elements to a Slice}
+
+The built-in \texttt{append} function adds elements to the end of a slice. It returns the resulting slice, which must normally be assigned to a variable.
+
+\begin{lstlisting}
+numbers := []int{10, 20, 30}
+
+numbers = append(numbers, 40)
+numbers = append(numbers, 50, 60)
+
+fmt.Println(numbers) // [10 20 30 40 50 60]
+\end{lstlisting}
+
+If the existing capacity is sufficient, \texttt{append} may extend the slice using its current underlying array. If the capacity is insufficient, a new underlying array is allocated and the existing elements are copied into it. The precise growth strategy is an implementation detail and should not be relied upon by application code.\\
+
+Because \texttt{append} returns a slice value, the result should generally be assigned back to the relevant slice variable. The returned slice may refer to a different underlying array from the original slice.
+
+\subsubsection{Creating Slices from Arrays and Other Slices}
+
+A slice can be produced by applying a slicing expression to an array or another slice. The expression selects a range of elements without necessarily copying them.\\
+
+The general two-index syntax is:
+
+\begin{lstlisting}
+slice := array[low:high]
+\end{lstlisting}
+
+The resulting slice includes elements starting at index \texttt{low} and ending immediately before index \texttt{high}.\\
+
+For example:
+
+\begin{lstlisting}
+numbers := [5]int{10, 20, 30, 40, 50}
+slice := numbers[1:4]
+
+fmt.Println(slice) // [20 30 40]
+\end{lstlisting}
+
+The resulting slice contains the elements at indices one, two, and three. Its length is three. The length of a two-index slice expression is determined by
+
+\[
+\operatorname{len}(s) = \text{high} - \text{low}.
+\]
+
+For a slice derived from an array, the capacity extends from the first selected element to the end of the underlying array. Consequently, the capacity of \texttt{numbers[1:4]} is four, even though its length is three.
+
+Go also supports three-index slicing expressions, which explicitly specify the resulting capacity.
+
+\begin{lstlisting}
+numbers := [5]int{10, 20, 30, 40, 50}
+slice := numbers[1:3:4]
+
+fmt.Println(slice)     // [20 30]
+fmt.Println(len(slice)) // 2
+fmt.Println(cap(slice)) // 3
+\end{lstlisting}
+
+The third index limits the capacity of the resulting slice. It must be greater than or equal to the low index and not greater than the capacity limit permitted by the underlying array or slice.\\
+
+Three-index slicing can be useful when a function should receive a slice that cannot be extended to additional elements of the original array through ordinary reslicing or appending within the supplied capacity.
+
+\subsubsection{Slice Aliasing and Shared Underlying Arrays}
+
+A slice does not contain an independent copy of all its elements merely because it is assigned to another variable or created by slicing. Multiple slices may refer to the same underlying array.
+
+For example:
+
+\begin{lstlisting}
+original := []int{10, 20, 30, 40}
+subset := original[1:3]
+
+subset[0] = 99
+
+fmt.Println(original) // [10 99 30 40]
+fmt.Println(subset)   // [99 30]
+\end{lstlisting}
+
+The modification through \texttt{subset} changes the underlying array, and the change is visible through \texttt{original}. This behaviour is known as aliasing.\\
+
+Aliasing is useful when several parts of a program need to access the same data efficiently. However, it also means that modifications made through one slice may affect other slices that share the same underlying storage.\\
+
+If an independent copy is required, the built-in \texttt{copy} function can be used.
+
+\begin{lstlisting}
+original := []int{10, 20, 30}
+duplicate := make([]int, len(original))
+
+copy(duplicate, original)
+duplicate[0] = 99
+
+fmt.Println(original)  // [10 20 30]
+fmt.Println(duplicate) // [99 20 30]
+\end{lstlisting}
+
+The \texttt{copy} function copies elements from one slice into another and returns the number of elements copied. The number copied is the smaller of the source and destination lengths. In this example, the destination has its own underlying array, so subsequent element modifications do not affect the source.
+
+\subsection{Passing Arrays and Slices to Functions}
+
+Arrays and slices behave differently when passed to functions because arrays are values containing their elements, whereas slices are descriptors referring to underlying storage.\\
+
+When an array is passed to a function, the array value is copied. Modifications to the parameter's elements therefore do not directly modify the original array.
+
+\begin{lstlisting}
+func modifyArray(values [3]int) {
+    values[0] = 100
+}
+\end{lstlisting}
+
+In contrast, passing a slice copies the slice descriptor, not the entire underlying array. The parameter and the original slice may therefore refer to the same elements.
+
+\begin{lstlisting}
+func modifySlice(values []int) {
+    values[0] = 100
+}
+
+func main() {
+    numbers := []int{1, 2, 3}
+    modifySlice(numbers)
+
+    fmt.Println(numbers) // [100 2 3]
+}
+\end{lstlisting}
+
+The change is visible in the caller because both slices refer to the same underlying array.\\
+
+However, a function that appends to a slice receives its own copy of the slice descriptor. If \texttt{append} allocates a new underlying array, the caller will not automatically receive the updated slice descriptor. For this reason, functions that add elements frequently return the resulting slice.
+
+\begin{lstlisting}
+func addElement(values []int, value int) []int {
+    return append(values, value)
+}
+
+func main() {
+    numbers := []int{1, 2, 3}
+    numbers = addElement(numbers, 4)
+
+    fmt.Println(numbers) // [1 2 3 4]
+}
+\end{lstlisting}
+
+This approach ensures that the caller receives the updated length and the appropriate underlying-array reference.
+
+\subsection{Multidimensional Arrays and Slices}
+
+Go supports multidimensional arrays by allowing arrays to contain other arrays. The dimensions and element type are part of the array's type.\\
+
+For example, a two-dimensional array can be declared as follows:
+
+\begin{lstlisting}
+var matrix [2][3]int
+\end{lstlisting}
+
+This declaration creates two rows, each containing three integers. The array can be initialised and accessed using two indices:
+
+\begin{lstlisting}
+matrix := [2][3]int{
+    {1, 2, 3},
+    {4, 5, 6},
+}
+
+fmt.Println(matrix[0][1]) // 2
+fmt.Println(matrix[1][2]) // 6
+\end{lstlisting}
+
+Multidimensional slices can also be constructed. A common representation of a two-dimensional slice is a slice of slices.
+
+\begin{lstlisting}
+matrix := [][]int{
+    {1, 2, 3},
+    {4, 5, 6},
+}
+
+fmt.Println(matrix[0][1]) // 2
+\end{lstlisting}
+
+Unlike a two-dimensional array, a slice of slices does not require every row to have the same length. Each inner slice can have a different number of elements, making this representation suitable for irregular or dynamically sized data.\\
+
+For example:
+
+\begin{lstlisting}
+matrix := [][]int{
+    {1, 2},
+    {3, 4, 5},
+    {6},
+}
+\end{lstlisting}
+
+In this structure, the rows contain two, three and one elements, respectively. The flexibility of slices makes them particularly useful for representing tables, graphs, and other collections whose dimensions may change.
+
+\subsection{Memory Management and Performance Considerations}
+
+Arrays and slices have different memory and performance characteristics that influence their suitability for particular applications.\\
+
+Arrays contain their elements directly as part of the array value. Their size is fixed, and assignment or argument passing may copy the complete array. This can be efficient for small arrays, but copying large arrays may introduce additional overhead.\\
+
+Slices provide a more flexible interface to an underlying array. A slice value conceptually contains a reference to the underlying array, a length, and a capacity. Copying a slice value does not ordinarily copy all its elements, although the underlying elements may be copied when operations such as \texttt{append} require new storage.\\
+
+Slice allocation and growth may result in additional memory use. Repeated appending can cause allocation and copying when capacity is exhausted. Where the approximate final size is known, specifying an initial capacity can reduce unnecessary reallocations.
+
+\begin{lstlisting}
+items := make([]int, 0, 100)
+
+for i := 0; i < 100; i++ {
+    items = append(items, i)
+}
+\end{lstlisting}
+
+The slice starts empty, but has a capacity of 100. This allows the program to append up to 100 elements without requiring the slice's capacity to grow beyond its initial allocation.\\
+
+Care must also be taken when retaining a small slice of a large underlying array. The small slice may keep the entire underlying array accessible, preventing its memory from being reclaimed by the garbage collector. Copying the required elements into a new slice can be appropriate when the remaining array is no longer needed.
+
+\subsection{Comparison Between Arrays and Slices}
+
+The principal differences between arrays and slices can be summarised as follows:
+
+\begin{center}
+\begin{tabular}{|p{3.2cm}|p{5.0cm}|p{5.0cm}|}
+\hline
+\textbf{Characteristic} & \textbf{Arrays} & \textbf{Slices} \\
+\hline
+Length & Fixed and part of the type & Variable during execution \\
+\hline
+Type representation & \texttt{[N]T} & \texttt{[]T} \\
+\hline
+Storage & Contains its elements directly & Refers to an underlying array \\
+\hline
+Assignment & Copies the array value and its elements & Copies the slice descriptor \\
+\hline
+Resizing & Not supported & Can grow using \texttt{append} \\
+\hline
+Capacity & Length is fixed & Capacity may exceed length \\
+\hline
+Element access & Uses zero-based indexing & Uses zero-based indexing \\
+\hline
+Typical usage & Fixed-size collections and value semantics & General-purpose, dynamically sized collections \\
+\hline
+\end{tabular}
+\end{center}
+
+Although arrays and slices share similar indexing and iteration syntax, their different value and storage semantics must be considered when choosing an appropriate representation.
+
+\subsection{Conclusion}
+
+Arrays and slices provide complementary mechanisms for storing and manipulating collections in Go. Arrays offer fixed-size storage and value semantics, making them suitable for collections whose dimensions are known and stable. Slices provide a flexible view of an underlying array, supporting dynamic lengths, reslicing, appending, and efficient sharing of element storage.\\
+
+A thorough understanding of array types, slice literals, length and capacity, indexing, append operations, copying, and shared underlying arrays is essential for writing correct and efficient Go programs. In most general-purpose collection-processing tasks, slices are the preferred abstraction because they combine convenient operations with efficient access to contiguous elements. Arrays remain valuable when fixed-size storage and explicit value semantics are required.

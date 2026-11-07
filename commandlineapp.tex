@@ -1,0 +1,839 @@
+\section{Command-Line Utilities and Argument Handling}
+
+\subsection{Introduction}
+
+Command-line utilities are programs that are executed from a terminal or shell and receive input through command-line arguments, environment variables, standard input, and configuration files. They are widely used for automation, system administration, data processing, software development, and interaction with operating-system services.\\
+
+The Go programming language provides built-in support for developing command-line utilities through packages such as \texttt{os}, \texttt{flag}, \texttt{fmt}, \texttt{strconv}, \texttt{strings}, and \texttt{io}. These packages allow developers to retrieve command-line arguments, define options and flags, validate user input, display informative messages, and return appropriate exit codes.\\
+
+More sophisticated command-line applications may also use third-party libraries for subcommands, interactive prompts, completion scripts, and advanced help generation. However, the Go standard library is sufficient for many practical utilities.\\
+
+A well-designed command-line utility should have a clear interface, predictable argument parsing, meaningful error messages, appropriate exit statuses and consistent behaviour when invoked by scripts or other programs.\\
+
+\subsection{The Structure of a Command-Line Program}
+
+A Go executable typically begins execution in the \texttt{main} function of the \texttt{main} package. The \texttt{main} function serves as the entry point of the application.\\
+
+The following example demonstrates a minimal command-line utility:
+
+\begin{lstlisting}
+package main
+
+import "fmt"
+
+func main() {
+    fmt.Println("Hello, command line!")
+}
+\end{lstlisting}
+
+After saving this program as \texttt{main.go}, it can be executed directly using:
+
+\begin{lstlisting}
+go run main.go
+\end{lstlisting}
+
+Alternatively, an executable can be compiled using:
+
+\begin{lstlisting}
+go build -o greeting main.go
+\end{lstlisting}
+
+On a Unix-like operating system, the resulting executable can be invoked as follows:
+
+\begin{lstlisting}
+./greeting
+\end{lstlisting}
+
+The program prints its message to standard output. Unlike an interactive graphical application, a command-line utility generally communicates through text streams, exit codes and, where appropriate, files or other operating-system resources.\\
+
+For a larger project, the application's entry point is often placed in a directory such as \texttt{cmd/toolname}, with reusable application logic separated into internal packages. This arrangement helps keep argument parsing, business logic and external interfaces distinct.\\
+
+\subsection{Accessing Raw Command-Line Arguments}
+
+Go exposes the command-line arguments through the \texttt{os.Args} slice. Each element is a string representing an argument supplied when the program was invoked.\\
+
+The first element, \texttt{os.Args[0]}, normally contains the program name or invocation path. Subsequent elements contain the arguments provided by the user.\\
+
+Consider the following example:
+
+\begin{lstlisting}
+package main
+
+import (
+    "fmt"
+    "os"
+)
+
+func main() {
+    fmt.Println("Program:", os.Args[0])
+
+    for i, arg := range os.Args[1:] {
+        fmt.Printf("Argument %d: %s\n", i+1, arg)
+    }
+}
+\end{lstlisting}
+
+If the program is executed as follows:
+
+\begin{lstlisting}
+go run main.go apple orange banana
+\end{lstlisting}
+
+The arguments following the program name are processed in sequence. The utility prints each supplied value together with its position.\\
+
+The expression \texttt{os.Args[1:]} excludes the program name. It is useful when an application needs to process raw positional arguments without interpreting them as flags.\\
+
+However, \texttt{os.Args} provides no automatic validation, type conversion or interpretation of options. If an application expects an integer, a file path or a particular number of arguments, it must validate those requirements explicitly.\\
+
+Raw argument parsing can be appropriate for simple utilities with very limited interfaces, but the \texttt{flag} package is generally more suitable when named options or typed values are required.\\
+
+\subsection{Using the Standard \texttt{flag} Package}
+
+The \texttt{flag} package provides a standard mechanism for defining and parsing command-line flags. A flag is a named option that modifies the behaviour of a program.\\
+
+For example, a utility might accept a username and a verbosity setting:
+
+\begin{lstlisting}
+package main
+
+import (
+    "flag"
+    "fmt"
+)
+
+func main() {
+    name := flag.String(
+        "name",
+        "Guest",
+        "Name of the user",
+    )
+
+    verbose := flag.Bool(
+        "verbose",
+        false,
+        "Enable verbose output",
+    )
+
+    flag.Parse()
+
+    if *verbose {
+        fmt.Println("Verbose mode enabled")
+    }
+
+    fmt.Printf("Hello, %s!\n", *name)
+}
+\end{lstlisting}
+
+The \texttt{flag.String} function defines a flag with strings. Its arguments specify the flag name, default value, and help description. The function returns a pointer to the flag's value.\\
+
+Similarly, \texttt{flag.Bool} defines a Boolean flag.\\
+
+The call to \texttt{flag.Parse()} processes the command-line arguments supplied and populates the values associated with the registered flags. The values are accessed through pointers, which explains the use of the dereference operator \texttt{*} in the example.\\
+
+The utility can be executed as follows:
+
+\begin{lstlisting}
+go run main.go -name Alice -verbose
+\end{lstlisting}
+
+The output is:
+
+\begin{lstlisting}
+Verbose mode enabled
+Hello, Alice!
+\end{lstlisting}
+
+The standard \texttt{flag} package recognises both single-hyphen and double-hyphen forms, such as \texttt{-name} and \texttt{--name}. Boolean flags can be enabled by specifying the flag without an explicit value, as in \texttt{-verbose}, or by supplying a Boolean value such as \texttt{-verbose=true}.\\
+
+The standard flag parser stops processing flags at the first non-flag argument or at the argument \texttt{--}. Consequently, positional arguments and flags should be arranged according to the parser's rules.\\
+
+Unlike some third-party command-line frameworks, the standard \texttt{flag} package does not automatically provide a general subcommand framework or POSIX-style short-option clustering. Its simplicity makes it suitable for many small and medium-sized tools.\\
+
+\subsection{Defining Different Types of Flags}
+
+The standard library supports flags for several common data types, including strings, integers, Booleans and durations.\\
+
+For example:
+
+\begin{lstlisting}
+package main
+
+import (
+    "flag"
+    "fmt"
+    "time"
+)
+
+func main() {
+    input := flag.String(
+        "input",
+        "input.txt",
+        "Input file path",
+    )
+
+    limit := flag.Int(
+        "limit",
+        100,
+        "Maximum number of records",
+    )
+
+    enabled := flag.Bool(
+        "enabled",
+        true,
+        "Enable processing",
+    )
+
+    timeout := flag.Duration(
+        "timeout",
+        5*time.Second,
+        "Processing timeout",
+    )
+
+    flag.Parse()
+
+    fmt.Println("Input:", *input)
+    fmt.Println("Limit:", *limit)
+    fmt.Println("Enabled:", *enabled)
+    fmt.Println("Timeout:", *timeout)
+}
+\end{lstlisting}
+
+The utility can be invoked using:
+
+\begin{lstlisting}
+./utility \
+    -input data.csv \
+    -limit 500 \
+    -enabled=false \
+    -timeout 10s
+\end{lstlisting}
+
+The \texttt{flag.Duration} function accepts duration values expressed using Go's duration syntax, such as \texttt{250ms}, \texttt{10s} or \texttt{2m}. Invalid values are rejected during argument parsing.\\
+
+Defining typed flags reduces the need for manual conversion and allows malformed values to be detected early. Nevertheless, successful parsing does not guarantee that a value is sensible for the application. A negative timeout, an excessively large record limit or an empty file path may still require application-level validation.\\
+
+\subsection{Parsing Positional Arguments}
+
+Positional arguments are values supplied without a flag name. They commonly identify input files, resource names or commands to execute.\\
+
+After calling \texttt{flag.Parse()}, the remaining non-flag arguments can be accessed through \texttt{flag.Args()}.\\
+
+For example:
+
+\begin{lstlisting}
+package main
+
+import (
+    "flag"
+    "fmt"
+)
+
+func main() {
+    uppercase := flag.Bool(
+        "upper",
+        false,
+        "Convert arguments to uppercase",
+    )
+
+    flag.Parse()
+
+    args := flag.Args()
+
+    if len(args) == 0 {
+        fmt.Println("Error: provide at least one argument")
+        return
+    }
+
+    for _, arg := range args {
+        if *uppercase {
+            fmt.Println(strings.ToUpper(arg))
+        } else {
+            fmt.Println(arg)
+        }
+    }
+}
+\end{lstlisting}
+
+This example requires the \texttt{strings} package to be added to the import list.
+
+A command such as:
+
+\begin{lstlisting}
+./utility -upper apple orange banana
+\end{lstlisting}
+
+prints the supplied words in uppercase.
+
+The function \texttt{flag.NArg()} returns the number of remaining positional arguments, while \texttt{flag.Arg(i)} retrieves a positional argument by index.\\
+
+Applications should define their expected argument structure clearly. For example, a utility that requires exactly two file paths should reject both missing and excess positional arguments rather than silently ignoring unexpected input.\\
+
+\subsection{Combining Flags and Positional Arguments}
+
+A practical utility often requires a mixture of named options and positional arguments. Consider a program that reads an input file and optionally prints additional diagnostic information.\\
+
+\begin{lstlisting}
+package main
+
+import (
+    "flag"
+    "fmt"
+    "os"
+)
+
+func main() {
+    verbose := flag.Bool(
+        "verbose",
+        false,
+        "Display diagnostic information",
+    )
+
+    flag.Parse()
+
+    args := flag.Args()
+
+    if len(args) != 1 {
+        fmt.Fprintln(
+            os.Stderr,
+            "Usage: utility [-verbose] <file>",
+        )
+        os.Exit(2)
+    }
+
+    filename := args[0]
+
+    if *verbose {
+        fmt.Fprintln(
+            os.Stderr,
+            "Processing:", filename,
+        )
+    }
+
+    fmt.Println("Input file:", filename)
+}
+\end{lstlisting}
+
+The program expects one positional argument representing the input file. It accepts an optional Boolean flag that enables diagnostic output.\\
+
+Error messages are written to standard error using \texttt{os.Stderr}, keeping diagnostic information separate from ordinary output. This separation is particularly important when command-line utilities are used in pipelines or when their output is redirected to a file.\\
+
+The example uses exit status 2 for invalid invocation syntax. More generally, command-line applications should document their exit-status conventions and use them consistently.\\
+
+\subsection{Customising Usage Information}
+
+When argument parsing fails, the standard \texttt{flag} package provides usage information. Applications can customise this information using the \texttt{flag.Usage} function variable.\\
+
+For example:
+
+\begin{lstlisting}
+package main
+
+import (
+    "flag"
+    "fmt"
+    "os"
+)
+
+func main() {
+    input := flag.String(
+        "input",
+        "",
+        "Path to the input file",
+    )
+
+    flag.Usage = func() {
+        fmt.Fprintln(
+            os.Stderr,
+            "Usage: utility -input <path>",
+        )
+        fmt.Fprintln(
+            os.Stderr,
+            "Options:",
+        )
+        flag.PrintDefaults()
+    }
+
+    flag.Parse()
+
+    if *input == "" {
+        flag.Usage()
+        os.Exit(2)
+    }
+
+    fmt.Println("Input:", *input)
+}
+\end{lstlisting}
+
+The \texttt{flag.PrintDefaults()} function prints the descriptions and default values of registered flags. This makes it easier to maintain accurate help output as the program evolves.\\
+
+The standard parser normally handles the \texttt{-h} and \texttt{-help} flags by displaying usage information and terminating with a special error. In conventional command-line usage, help should not be treated as an application failure.\\
+
+For more complex applications, a dedicated help command or subcommand framework may provide a better user experience.\\
+
+\subsection{Converting and Validating Argument Values}
+
+Although typed flags handle common conversions, applications that parse raw strings may need to convert values manually.\\
+
+The \texttt{strconv} package provides conversion functions for integers, floating-point numbers and Booleans.\\
+
+For example:
+
+\begin{lstlisting}
+package main
+
+import (
+    "fmt"
+    "strconv"
+)
+
+func main() {
+    input := "42"
+
+    value, err := strconv.Atoi(input)
+    if err != nil {
+        fmt.Println("Invalid integer:", err)
+        return
+    }
+
+    if value < 1 {
+        fmt.Println("Value must be positive")
+        return
+    }
+
+    fmt.Println("Validated value:", value)
+}
+\end{lstlisting}
+
+The call to \texttt{strconv.Atoi} converts the input string into an integer. The returned error indicates whether the conversion succeeded.\\
+
+Validation should distinguish between syntactic correctness and semantic correctness. The string \texttt{"-5"} is a valid integer representation, but it may be invalid for a field that represents a positive number of workers or a maximum number of records.\\
+
+For robust utilities, validation should occur immediately after parsing and before any operation that depends on the values. This avoids partially executing a command with invalid configuration.\\
+
+\subsection{Reading Environment Variables}
+
+Command-line arguments are not the only mechanism for configuring a program. Environment variables provide an alternative that is especially useful for deployment environments, automated scripts and containerised applications.\\
+
+The \texttt{os.Getenv} function retrieves an environment variable as a string:
+
+\begin{lstlisting}
+package main
+
+import (
+    "fmt"
+    "os"
+)
+
+func main() {
+    username := os.Getenv("APP_USERNAME")
+
+    if username == "" {
+        username = "Guest"
+    }
+
+    fmt.Println("Username:", username)
+}
+\end{lstlisting}
+
+The program uses \texttt{APP_USERNAME} if it is available and falls back to a default value otherwise.\\
+
+The function \texttt{os.LookupEnv} can be used when the distinction between an unset variable and a variable set to an empty string matters.\\
+
+A utility may combine command-line flags, environment variables and configuration files. In such cases, the precedence rules should be explicit. A common design is to use configuration-file values as defaults, override them with environment variables, and allow command-line flags to take the highest precedence. This is a design convention rather than a rule enforced by Go.\\
+
+Sensitive values, such as access tokens, should not be embedded in source code or exposed in diagnostic output. Environment variables can be useful for supplying configuration, but their security depends on how the operating environment manages process environments and secrets.\\
+
+\subsection{Reading from Standard Input}
+
+Command-line utilities often receive data through standard input rather than through a named file. This allows programs to be composed using shell pipelines.\\
+
+The \texttt{os.Stdin} variable provides access to the process's standard input stream. It implements the \texttt{io.Reader} interface.
+
+For example:
+
+\begin{lstlisting}
+package main
+
+import (
+    "fmt"
+    "io"
+    "os"
+)
+
+func main() {
+    data, err := io.ReadAll(os.Stdin)
+    if err != nil {
+        fmt.Fprintln(os.Stderr, err)
+        os.Exit(1)
+    }
+
+    fmt.Printf("Received %d bytes\n", len(data))
+    fmt.Print(string(data))
+}
+\end{lstlisting}
+
+The program reads the entire input stream into memory and then displays its length and contents. This is suitable only when the input size is reasonably bounded.\\
+
+For large streams, incremental processing is preferable. For example, \texttt{bufio.Scanner} can process input line by line, while \texttt{bufio.Reader} supports more flexible buffered reading.\\
+
+A utility can use a conventional filename such as \texttt{-} to indicate standard input, provided that this behaviour is documented and implemented explicitly.\\
+
+\subsection{Writing to Standard Output and Standard Error}
+
+Go exposes three standard streams through the \texttt{os} package:
+
+\begin{itemize}
+    \item \texttt{os.Stdin}: standard input.
+    \item \texttt{os.Stdout}: standard output.
+    \item \texttt{os.Stderr}: standard error.
+\end{itemize}
+
+Standard output should normally contain the primary result of the command. Standard error is generally used for diagnostics, warnings and error messages.\\
+
+For example:
+
+\begin{lstlisting}
+fmt.Println("Processing completed")
+fmt.Fprintln(os.Stderr, "Warning: skipped one record")
+\end{lstlisting}
+
+This distinction permits users to redirect the primary output without also capturing diagnostic messages.\\
+
+For example, in a Unix-like shell:
+
+\begin{lstlisting}
+./utility > results.txt 2> errors.txt
+\end{lstlisting}
+
+The primary output is written to \texttt{results.txt}, while diagnostic messages are written to \texttt{errors.txt}.\\
+
+A well-designed utility should avoid printing banners or progress messages to standard output when that output is intended to be consumed by another program. Such messages are usually better directed to standard error or made optional through a verbosity flag.
+
+\subsection{Exit Status Codes}
+
+The exit status communicates whether a command completed successfully. By convention, an exit status of zero indicates success, while a non-zero status indicates failure or another noteworthy outcome.\\
+
+In Go, \texttt{os.Exit} terminates the process with the specified status code:
+
+\begin{lstlisting}
+package main
+
+import (
+    "fmt"
+    "os"
+)
+
+func main() {
+    if len(os.Args) < 2 {
+        fmt.Fprintln(
+            os.Stderr,
+            "Error: missing input",
+        )
+        os.Exit(2)
+    }
+
+    fmt.Println("Processing:", os.Args[1])
+}
+\end{lstlisting}
+
+The example exits with status 2 if the required argument is absent.\\
+
+The function \texttt{os.Exit} terminates the process immediately and does not execute deferred functions. Therefore, code that uses \texttt{os.Exit} should be designed carefully, especially when resources must be closed or temporary files removed.\\
+
+A common design is to place the main application logic in a separate function that returns an error, then translate that result into an exit status in the outermost function.\\
+
+\begin{lstlisting}
+package main
+
+import (
+    "fmt"
+    "os"
+)
+
+func run() error {
+    if len(os.Args) < 2 {
+        return fmt.Errorf("missing input")
+    }
+
+    fmt.Println("Processing:", os.Args[1])
+    return nil
+}
+
+func main() {
+    if err := run(); err != nil {
+        fmt.Fprintln(os.Stderr, "Error:", err)
+        os.Exit(1)
+    }
+}
+\end{lstlisting}
+
+This approach ensures that deferred operations within \texttt{run} are executed before control returns to \texttt{main}. The call to \texttt{os.Exit} occurs only after the application logic has returned.\\
+
+\subsection{Implementing Subcommands}
+
+Larger command-line applications frequently expose multiple related operations through subcommands. For example, a utility might support commands such as:
+
+\begin{lstlisting}
+tool create
+tool list
+tool delete
+\end{lstlisting}
+
+The Go standard \texttt{flag} package does not provide a complete subcommand framework, but subcommands can be implemented by inspecting the first positional argument and creating a separate flag set for each command.\\
+
+\begin{lstlisting}
+package main
+
+import (
+    "flag"
+    "fmt"
+    "os"
+)
+
+func runCreate(args []string) error {
+    flags := flag.NewFlagSet(
+        "create",
+        flag.ContinueOnError,
+    )
+
+    name := flags.String(
+        "name",
+        "",
+        "Name of the resource",
+    )
+
+    if err := flags.Parse(args); err != nil {
+        return err
+    }
+
+    if *name == "" {
+        return fmt.Errorf("name is required")
+    }
+
+    fmt.Println("Creating:", *name)
+    return nil
+}
+
+func run() error {
+    if len(os.Args) < 2 {
+        return fmt.Errorf(
+            "expected a subcommand: create",
+        )
+    }
+
+    switch os.Args[1] {
+    case "create":
+        return runCreate(os.Args[2:])
+    default:
+        return fmt.Errorf(
+            "unknown command: %s",
+            os.Args[1],
+        )
+    }
+}
+
+func main() {
+    if err := run(); err != nil {
+        fmt.Fprintln(os.Stderr, "Error:", err)
+        os.Exit(1)
+    }
+}
+\end{lstlisting}
+
+The program creates a separate \texttt{FlagSet} for the \texttt{create} subcommand. This isolates its flags from those belonging to other commands.\\
+
+The \texttt{flag.ContinueOnError} setting causes parsing errors to be returned instead of immediately terminating the process. The caller can then decide how to report the error and which exit status to use.\\
+
+As the number of subcommands grows, manual dispatch can become difficult to maintain. Third-party libraries such as Cobra or urfave/cli provide facilities for nested commands, automatic help generation, completion and more advanced flag behaviour. These libraries are external dependencies and are not part of the Go standard library.\\
+
+\subsection{A Complete Example: A Word-Counting Utility}
+
+The following example combines argument parsing, file reading, input validation, standard output and error reporting in a practical command-line utility. The program counts the number of lines and words in a specified file.
+
+\begin{lstlisting}
+package main
+
+import (
+    "bufio"
+    "flag"
+    "fmt"
+    "io"
+    "os"
+)
+
+func count(r io.Reader) (int, int, error) {
+    scanner := bufio.NewScanner(r)
+
+    lines := 0
+    words := 0
+
+    for scanner.Scan() {
+        lines++
+
+        fields := len(
+            strings.Fields(scanner.Text()),
+        )
+
+        words += fields
+    }
+
+    if err := scanner.Err(); err != nil {
+        return 0, 0, err
+    }
+
+    return lines, words, nil
+}
+
+func run() error {
+    flags := flag.NewFlagSet(
+        "wordcount",
+        flag.ContinueOnError,
+    )
+
+    flags.SetOutput(os.Stderr)
+
+    filename := flags.String(
+        "file",
+        "",
+        "Path to the input file",
+    )
+
+    if err := flags.Parse(os.Args[1:]); err != nil {
+        return err
+    }
+
+    if *filename == "" {
+        return fmt.Errorf(
+            "the -file option is required",
+        )
+    }
+
+    if flags.NArg() != 0 {
+        return fmt.Errorf(
+            "unexpected positional arguments",
+        )
+    }
+
+    file, err := os.Open(*filename)
+    if err != nil {
+        return fmt.Errorf(
+            "cannot open %q: %w",
+            *filename,
+            err,
+        )
+    }
+    defer file.Close()
+
+    lines, words, err := count(file)
+    if err != nil {
+        return fmt.Errorf(
+            "cannot process %q: %w",
+            *filename,
+            err,
+        )
+    }
+
+    fmt.Printf("Lines: %d\n", lines)
+    fmt.Printf("Words: %d\n", words)
+
+    return nil
+}
+
+func main() {
+    if err := run(); err != nil {
+        fmt.Fprintln(os.Stderr, "Error:", err)
+        os.Exit(1)
+    }
+}
+\end{lstlisting}
+
+The example requires the \texttt{strings} package to be added to its import list.\\
+
+The program illustrates several important design principles:
+
+\begin{itemize}
+    \item Command-line options are parsed through a dedicated flag set.
+    \item Missing required input is detected before file processing begins.
+    \item Unexpected positional arguments are rejected.
+    \item File-opening and reading errors are propagated to the caller.
+    \item The input is processed incrementally rather than read entirely into memory.
+    \item The application logic is separated from the final exit-status decision.
+\end{itemize}
+
+The \texttt{strings.Fields} function splits each line into fields separated by consecutive white-space characters. Consequently, the word count is based on whitespace-separated tokens rather than a linguistic definition of a word.\\
+
+The example also inherits the default token-size limitation of \texttt{bufio.Scanner}. For arbitrary files that contain very long lines, the scanner buffer should be configured appropriately or replaced with a reader-based implementation. \\
+
+The utility can be invoked as follows:
+
+\begin{lstlisting}
+./wordcount -file document.txt
+\end{lstlisting}
+
+Its output reports the number of lines and whitespace-separated words in the file. The exact treatment of a final line without a newline depends on the input, but \texttt{Scanner} still processes that final non-empty token.
+
+\subsection{Testing Command-Line Utilities}
+
+Command-line applications should be tested at several levels. Unit tests can verify parsing, validation, and processing functions independently, while integration tests can execute the compiled programme or invoke its main application logic with controlled inputs.\\
+
+The \texttt{testing} package provides standard facilities for writing tests. Functions that accept an \texttt{io.Reader} or other interfaces are especially easy to test because they can operate on in-memory data rather than requiring physical files.
+
+For example:
+
+\begin{lstlisting}
+func TestCount(t *testing.T) {
+    input := strings.NewReader(
+        "hello world\nGo language\n",
+    )
+
+    lines, words, err := count(input)
+    if err != nil {
+        t.Fatal(err)
+    }
+
+    if lines != 2 {
+        t.Fatalf(
+            "expected 2 lines, got %d",
+            lines,
+        )
+    }
+
+    if words != 4 {
+        t.Fatalf(
+            "expected 4 words, got %d",
+            words,
+        )
+    }
+}
+\end{lstlisting}
+
+This test verifies the counting logic without creating a file. The \texttt{strings.NewReader} function provides an in-memory reader that implements \texttt{io.Reader}.\\
+
+Additional tests should cover invalid flags, missing required arguments, malformed numeric values, unreadable files and unexpected positional arguments. Tests should also verify the program's exit status and distinguish standard output from standard error when these behaviours form part of the command-line interface.\\
+
+\subsection{Best Practices for Command-Line Design}
+
+A reliable command-line utility should provide a consistent and well-documented interface. The following practices are generally recommended:
+
+\begin{itemize}
+    \item \textbf{Use descriptive flag names.} Names such as \texttt{-input}, \texttt{-output} and \texttt{-timeout} communicate their purpose more clearly than ambiguous abbreviations.
+    \item \textbf{Validate arguments early.} Reject missing, malformed or contradictory inputs before performing operations that could modify external state.
+    \item \textbf{Separate output from diagnostics.} Write normal results to standard output and errors or progress information to standard error.
+    \item \textbf{Use meaningful exit codes.} Return zero on success and non-zero values for failures, documenting any application-specific conventions.
+    \item \textbf{Avoid unnecessary global state.} Encapsulate parsing and application logic in functions that can be tested independently.
+    \item \textbf{Support standard streams where appropriate.} Allowing input from standard input and output to standard output improves compatibility with shell pipelines.
+    \item \textbf{Handle resources explicitly.} Close files and other resources, and avoid relying on process termination to clean up intermediate work.
+    \item \textbf{Provide useful help.} Document required arguments, defaults, accepted values and examples of common invocations.
+    \item \textbf{Avoid leaking sensitive data.} Do not print credentials, access tokens or confidential configuration values in diagnostic messages.
+    \item \textbf{Keep command behaviour predictable.} Avoid surprising changes to files or other external resources, and document destructive operations clearly.
+\end{itemize}
+
+A command-line interface should be treated as a public interface when other programs, scripts or users depend on it. Changes to option names, defaults, output formats and exit statuses can therefore affect compatibility and should be managed deliberately.
+
+\subsection{Conclusion}
+
+The Go programming language provides flexible support for developing command-line utilities through its standard library. The \texttt{os} package exposes process arguments, environment variables, files and standard streams, while the \texttt{flag} package provides typed option parsing and help generation. Packages such as \texttt{strconv}, \texttt{strings}, \texttt{bufio} and \texttt{io} support input validation and data processing.\\
+
+For simple tools, raw argument processing may be sufficient. For utilities with named options, typed flags and positional arguments, the standard \texttt{flag} package provides a straightforward solution. More complex applications can implement subcommands using separate flag sets or adopt a third-party command-line framework.\\
+
+The most important considerations extend beyond parsing. A well-engineered utility must validate its inputs, handle errors consistently, manage resources correctly, communicate through standard streams and return meaningful exit statuses. By separating argument parsing from application logic and designing explicit behavioural conventions, developers can create command-line programs that are reliable, testable and suitable for automation.

@@ -1,0 +1,414 @@
+\section{Strings, Runes, and Character Set Support}
+
+Strings and runes are fundamental components of text processing in the Go programming language. Go provides built-in support for strings, which represent sequences of bytes, and the \texttt{rune} type, which represents Unicode code points. These concepts allow Go programs to process text that contains characters from different writing systems, including Latin, Greek, Cyrillic, Arabic, Chinese, and Japanese.\\
+
+Go uses UTF-8 as its conventional text encoding. String literals containing Unicode characters are generally encoded as UTF-8 byte sequences, whilst the language also provides mechanisms for handling individual Unicode code points and converting between different textual representations. Understanding the distinction between bytes, Unicode code points, and user-perceived characters is essential for implementing reliable text processing, internationalisation, and character manipulation.
+
+\subsection{Strings in Go}
+
+A string in Go is an immutable sequence of bytes. The built-in \texttt{string} type is commonly used to represent textual data, although the language does not require that every string contain valid UTF-8. A string may contain arbitrary bytes, including sequences that are not valid UTF-8 encodings.\\
+
+A string literal is typically declared using double quotation marks:
+
+\begin{lstlisting}
+package main
+
+import "fmt"
+
+func main() {
+    message := "Hello, World!"
+    fmt.Println(message)
+}
+\end{lstlisting}
+
+In this example, the variable \texttt{message} stores a string containing the text \texttt{Hello, World!}. The \texttt{fmt.Println} function displays the string in the standard output.\\
+
+Strings in Go are immutable, meaning that individual bytes within an existing string cannot be modified directly. An operation that appears to modify a string instead produces a new string value.\\
+
+For example:
+
+\begin{lstlisting}
+text := "Hello"
+text = text + " World"
+
+fmt.Println(text) // Hello World
+\end{lstlisting}
+
+The concatenation operator \texttt{+} combines two strings. The result is assigned to \texttt{text}, replacing the previous string value held by that variable. This does not modify the original string in place.
+
+\subsection{String Literals}
+
+Go supports two principal forms of string literals: interpreted string literals and raw string literals.
+
+\subsubsection{Interpreted String Literals}
+
+Interpreted string literals are enclosed in double quotation marks. They support escape sequences for representing special characters, such as newlines, tabs, quotation marks, and backslashes.
+
+\begin{lstlisting}
+message := "Hello\nWorld"
+path := "C:\\Users\\Public"
+quote := "He said, \"Hello!\""
+\end{lstlisting}
+
+The escape sequence \texttt{\textbackslash n} represents a newline, while \texttt{\textbackslash t} represents a horizontal tab. Other escape sequences include \texttt{\textbackslash\textbackslash} for a backslash and \texttt{\textbackslash"} for a double quotation mark.\\
+
+Go also supports Unicode escape sequences. The \texttt{\textbackslash u} notation introduces a four-digit hexadecimal Unicode code point, while \texttt{\textbackslash U} introduces an eight-digit hexadecimal code point.
+
+\begin{lstlisting}
+text1 := "\u03A9"
+text2 := "\U0001F600"
+
+fmt.Println(text1) // Ω
+fmt.Println(text2) // ��
+\end{lstlisting}
+
+These escape sequences are interpreted when the string literal is compiled. The resulting string contains the UTF-8 encoding of the represented code points.
+
+\subsubsection{Raw String Literals}
+
+Raw string literals are enclosed in backticks. Escape sequences are not interpreted within a raw string literal, making this form useful for multiline text, regular expressions, and file paths.
+
+\begin{lstlisting}
+message := `First line
+Second line
+Third line`
+
+fmt.Println(message)
+\end{lstlisting}
+
+The line breaks are retained as part of the string. Raw string literals can contain quotation marks without escaping them, although they cannot contain a backtick character directly.
+
+\subsection{UTF-8 Encoding and Unicode}
+
+Unicode is a universal character encoding standard that assigns code points to characters and symbols from a wide range of writing systems. A Unicode code point is conventionally written in the form \texttt{U+XXXX}, where the hexadecimal value identifies the code point.\\
+
+UTF-8 is a variable-length encoding that represents Unicode code points using one to four bytes. It is the standard encoding used by Go source files and is the conventional encoding for textual data in Go strings.\\
+
+The number of bytes required for a character depends on its code point. For example:
+
+\begin{itemize}
+    \item The character \texttt{A} is represented by one byte in UTF-8.
+    \item The character \texttt{é} is represented by two bytes when encoded as the Unicode code point U+00E9.
+    \item The character \texttt{€} is represented by three bytes.
+    \item The character \texttt{��} is represented by four bytes.
+\end{itemize}
+
+Therefore, a string containing Unicode text does not necessarily contain one byte per character.
+
+\begin{lstlisting}
+package main
+
+import "fmt"
+
+func main() {
+    text := "Aé€��"
+
+    fmt.Println(len(text)) // 10
+}
+\end{lstlisting}
+
+The string contains four Unicode code points, but its UTF-8 representation occupies ten bytes: one byte for \texttt{A}, two for \texttt{é}, three for \texttt{€}, and four for \texttt{��}.\\
+
+This distinction is important because the built-in \texttt{len} function returns the number of bytes in a string, rather than the number of Unicode code points or user-perceived characters.
+
+\subsection{The Rune Type}
+
+The \texttt{rune} type is an alias for \texttt{int32}. It is conventionally used to represent a Unicode code point. A rune value can therefore hold a code point independently of the number of bytes required to encode that code point in UTF-8.
+
+For example:
+
+\begin{lstlisting}
+var letter rune = 'A'
+var symbol rune = 'Ω'
+var emoji rune = '��'
+
+fmt.Println(letter) // 65
+fmt.Println(symbol) // 937
+fmt.Println(emoji)  // 128512
+\end{lstlisting}
+
+In Go, single-quoted literals such as \texttt{'A'} are rune literals. They represent integer values corresponding to Unicode code points, rather than strings containing one character.\\
+
+A rune literal can represent a character outside the ASCII range, provided that the literal denotes a valid Unicode code point.
+
+\begin{lstlisting}
+letter := 'ñ'
+fmt.Printf("%c\n", letter) // ñ
+fmt.Printf("%U\n", letter) // U+00F1
+\end{lstlisting}
+
+The \texttt{\%c} formatting verb displays the rune as a character, while \texttt{\%U} displays its Unicode code point.\\
+
+Although a rune is useful for representing a Unicode code point, it does not necessarily correspond to a complete user-perceived character. Some visible characters consist of multiple code points, for example a base letter followed by a combining accent.
+
+\subsection{Converting Between Strings and Runes}
+
+Go supports explicit conversion between strings and rune slices. Converting a string to a \texttt{[]rune} value decodes its UTF-8 representation into a sequence of Unicode code points. Converting a rune slice to a string encodes the rune values as UTF-8.\\
+
+For example:
+
+\begin{lstlisting}
+text := "Go é"
+characters := []rune(text)
+
+fmt.Println(len(text))       // 5
+fmt.Println(len(characters)) // 4
+\end{lstlisting}
+
+The string contains five bytes: two for \texttt{Go}, one for the space, and two for \texttt{é}. However, it contains four Unicode code points.\\
+
+The rune slice can be modified because slices are mutable, even though strings are immutable.
+
+\begin{lstlisting}
+text := "Hello"
+characters := []rune(text)
+
+characters[0] = 'Y'
+text = string(characters)
+
+fmt.Println(text) // Yello
+\end{lstlisting}
+
+The string is converted to a rune slice, its first code point is replaced, and the modified slice is converted back to a string.\\
+
+When a string contains invalid UTF-8, conversion to a rune slice replaces each invalid encoding sequence with the Unicode replacement character, U+FFFD, according to Go's UTF-8 decoding rules. Consequently, converting an arbitrary byte sequence to runes and back does not necessarily preserve the original bytes.
+
+\subsection{Iterating Over Strings}
+
+Go provides several ways to iterate over strings. The appropriate method depends on whether the program needs to process bytes or Unicode code points.
+
+\subsubsection{Byte-by-Byte Iteration}
+
+A conventional indexed loop accesses individual bytes in a string.
+
+\begin{lstlisting}
+text := "Go"
+
+for i := 0; i < len(text); i++ {
+    fmt.Printf("%d: %c\n", i, text[i])
+}
+\end{lstlisting}
+
+Since each character in this example is an ASCII character, each byte corresponds to one character. However, this assumption does not hold for arbitrary Unicode text.\\
+
+For example, indexing the string \texttt{"é"} retrieves its UTF-8 bytes individually, rather than retrieving the complete Unicode code point.
+
+\subsubsection{Rune-by-Rune Iteration}
+
+The \texttt{range} statement iterates over a string by decoding UTF-8 code points. For each iteration, it provides the byte index of the code point and the corresponding rune value.
+
+\begin{lstlisting}
+text := "Aé��"
+
+for index, character := range text {
+    fmt.Printf("%d: %c\n", index, character)
+}
+\end{lstlisting}
+
+The byte indices are zero for \texttt{A}, one for \texttt{é}, and three for \texttt{��}. The index advances according to the number of bytes in each UTF-8 encoding.\\
+
+This form of iteration is appropriate when processing Unicode code points. It does not, however, combine multiple code points into a single user-perceived character.
+
+\subsection{Unicode Code Points and User-Perceived Characters}
+
+A Unicode code point represents a position in the Unicode code space. A user-perceived character, often referred to as a grapheme cluster, may consist of one or more code points.
+
+For example, the visible character \texttt{é} can be represented in two different ways:
+
+\begin{itemize}
+    \item As the single code point U+00E9, represented by the precomposed character \texttt{é}.
+    \item As U+0065 followed by U+0301, representing the letter \texttt{e} followed by a combining acute accent.
+\end{itemize}
+
+These representations may appear identical when rendered, but they differ in their underlying code-point sequences and UTF-8 byte lengths.
+
+\begin{lstlisting}
+text1 := "\u00E9"
+text2 := "e\u0301"
+
+fmt.Println(len(text1))         // 2
+fmt.Println(len(text2))         // 3
+fmt.Println(len([]rune(text1))) // 1
+fmt.Println(len([]rune(text2))) // 2
+\end{lstlisting}
+
+The first string contains two UTF-8 bytes and one code point. The second contains three UTF-8 bytes and two code points.\\
+
+Go's built-in string operations do not automatically perform Unicode normalisation or grapheme-cluster segmentation. When a program needs to compare canonically equivalent text, count user-perceived characters, or move a cursor by visible characters, additional Unicode-aware processing may be required.\\
+
+The extended grapheme-cluster rules are defined by the Unicode standard. Go applications can use suitable external packages, such as those in the \texttt{golang.org/x/text} module, for Unicode normalisation and related text-processing operations.
+
+\subsection{Character Set Support}
+
+Go supports Unicode text through UTF-8 source files, Unicode string literals, rune values, and standard-library packages for encoding and text processing. This support allows programs to handle multilingual text without assuming that characters are limited to the ASCII character set.\\
+
+ASCII is a seven-bit character encoding that defines 128 code points, including basic Latin letters, digits, punctuation, and control characters. UTF-8 preserves the ASCII byte representation for these characters while providing encodings for the wider Unicode character repertoire.
+
+For example:
+
+\begin{lstlisting}
+text := "English Ελληνικά Русский 中文 العربية"
+fmt.Println(text)
+\end{lstlisting}
+
+The string can contain characters from several writing systems within the same value. When valid Unicode text is encoded as UTF-8, Go's string representation preserves the corresponding byte sequence.\\
+
+It is important to distinguish character encoding from character classification. Encoding specifies how code points are represented as bytes, whereas classification determines properties such as whether a code point is a letter, digit, or whitespace character.
+
+\subsection{Character Classification and Case Conversion}
+
+The standard library provides packages for character classification and case conversion. The \texttt{unicode} package contains functions that classify Unicode code points, while the \texttt{strings} package provides common string-processing operations.\\
+
+For example, the \texttt{unicode.IsLetter} function determines whether a rune is classified as a letter.
+
+\begin{lstlisting}
+package main
+
+import (
+    "fmt"
+    "unicode"
+)
+
+func main() {
+    characters := []rune{'A', 'Ω', 'Ж', '7'}
+
+    for _, character := range characters {
+        fmt.Println(
+            string(character),
+            unicode.IsLetter(character),
+        )
+    }
+}
+\end{lstlisting}
+
+The function returns \texttt{true} for the Latin letter \texttt{A}, the Greek letter \texttt{Ω}, and the Cyrillic letter \texttt{Ж}. It returns \texttt{false} for the digit \texttt{7}.\\
+
+Unicode-aware case conversion can be performed using functions such as \texttt{unicode.ToUpper} and \texttt{unicode.ToLower}.
+
+\begin{lstlisting}
+letter := 'ä'
+
+fmt.Printf("%c\n", unicode.ToUpper(letter)) // Ä
+\end{lstlisting}
+
+For complete strings, the \texttt{strings.ToUpper} and \texttt{strings.ToLower} functions provide convenient case conversion.
+
+\begin{lstlisting}
+text := "Hello, Go!"
+fmt.Println(strings.ToUpper(text)) // HELLO, GO!
+fmt.Println(strings.ToLower(text)) // hello, go!
+\end{lstlisting}
+
+Unicode case conversion is not equivalent to locale-sensitive linguistic processing. Some writing systems have context-dependent casing rules, and certain case transformations can require more than a simple one-to-one mapping. Applications with language-specific requirements should select appropriate Unicode and locale-aware processing facilities.
+
+\subsection{String Comparison and Lexical Ordering}
+
+Strings in Go can be compared using the equality and relational operators. Equality compares the underlying byte sequences, while relational comparisons use lexicographical byte ordering.
+
+\begin{lstlisting}
+first := "apple"
+second := "banana"
+
+fmt.Println(first == second) // false
+fmt.Println(first < second)  // true
+\end{lstlisting}
+
+For valid UTF-8 strings, lexicographical byte ordering preserves the ordering of Unicode code-point values. However, this does not mean that string comparison follows the linguistic sorting rules of a particular language.\\
+
+For example, characters with accents may have different positions in dictionaries depending on the language. Canonically equivalent Unicode sequences may also compare as unequal if their byte representations differ.\\
+
+Applications requiring language-sensitive sorting or comparison should use an appropriate collation implementation, such as facilities provided by the \texttt{golang.org/x/text/collate} package.
+
+\subsection{String Manipulation Using the Standard Library}
+
+Go provides several standard-library packages for common string operations. The \texttt{strings} package supports searching, splitting, replacing, trimming, and concatenating strings.
+
+\begin{lstlisting}
+text := "  Go programming language  "
+
+trimmed := strings.TrimSpace(text)
+words := strings.Split(trimmed, " ")
+
+fmt.Println(trimmed)
+fmt.Println(words)
+\end{lstlisting}
+
+The \texttt{strings.TrimSpace} function removes leading and trailing Unicode whitespace, while \texttt{strings.Split} divides a string according to a specified separator.\\
+
+The \texttt{strconv} package provides conversions between strings and basic data types, including integers, floating-point values, and Booleans.\\
+
+\begin{lstlisting}
+number, err := strconv.Atoi("123")
+
+if err == nil {
+    fmt.Println(number + 1) // 124
+}
+\end{lstlisting}
+
+The \texttt{unicode/utf8} package provides functions for decoding UTF-8, validating UTF-8 strings, and determining the number of bytes required to encode a rune.
+
+\begin{lstlisting}
+text := "Hello, 世界"
+
+fmt.Println(utf8.ValidString(text)) // true
+fmt.Println(utf8.RuneCountInString(text))
+\end{lstlisting}
+
+The function \texttt{utf8.RuneCountInString} counts Unicode code points in a string. It does not count grapheme clusters or guarantee a count of user-perceived characters.\\
+
+These packages provide complementary facilities for implementing text-processing operations while preserving the distinction between byte sequences and Unicode code points.
+
+\subsection{Efficient String Construction}
+
+Since strings are immutable, repeatedly concatenating strings inside a loop may result in unnecessary allocations and copying.\\
+
+For repeated string construction, Go provides the \texttt{strings.Builder} type, which allows efficient accumulation of string data.
+
+\begin{lstlisting}
+var builder strings.Builder
+
+words := []string{"Go", "is", "efficient"}
+
+for index, word := range words {
+    if index > 0 {
+        builder.WriteByte(' ')
+    }
+    builder.WriteString(word)
+}
+
+result := builder.String()
+fmt.Println(result) // Go is efficient
+\end{lstlisting}
+
+The builder accumulates the content and produces the resulting string when \texttt{String} is called. This approach is generally preferable to repeated concatenation when building a string from many fragments.\\
+
+Where the approximate output size is known, the \texttt{Grow} method can reserve additional capacity to reduce reallocations.
+
+\subsection{Invalid UTF-8 and Byte-Level Processing}
+
+Although Go source code and conventional text are UTF-8-based, a string may contain arbitrary bytes. Consequently, not every string is guaranteed to contain valid UTF-8.\\
+
+This property is useful when strings are employed to store binary data or when a program processes encoded input received from external systems. However, text-processing functions must account for invalid encodings where data validity is important.\\
+
+The \texttt{utf8.ValidString} function can be used to check whether a string contains valid UTF-8.
+
+\begin{lstlisting}
+data := string([]byte{0xff, 0xfe})
+
+if !utf8.ValidString(data) {
+    fmt.Println("Invalid UTF-8 data")
+}
+\end{lstlisting}
+
+The byte sequence in this example is not valid UTF-8. If the program requires valid Unicode text, it should validate or appropriately transform the input before further processing.\\
+
+When working with network protocols, file formats, or binary representations, byte-level processing may be more appropriate than rune-based processing. The correct representation depends on whether the application is manipulating raw bytes, Unicode code points, or user-perceived characters.
+
+\subsection{Conclusion}
+
+Strings and runes provide complementary mechanisms for representing and processing text in Go. A string is an immutable sequence of bytes, conventionally encoded as UTF-8, whereas a rune represents a Unicode code point. The distinction between byte length, code-point count, and grapheme-cluster count is essential for the correct handling of multilingual text.\\
+
+Go supports Unicode through its language syntax, built-in string and rune types, and standard-library packages such as \texttt{strings}, \texttt{unicode}, and \texttt{unicode/utf8}. These facilities support common operations including string concatenation, character classification, case conversion, UTF-8 validation, and code-point iteration.\\
+
+For robust internationalised applications, developers must also consider Unicode normalisation, linguistic collation, grapheme-cluster segmentation, and locale-sensitive text processing. Selecting the appropriate representation and operation for each task helps ensure that Go programs process textual data accurately, efficiently, and consistently across different writing systems.
+
